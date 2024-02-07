@@ -11,7 +11,7 @@ class SpotpySetup:
 
     def __init__(self, model, params, forcing, obs, warmup=365, obj_func=None,
                  invert_obj_func=False, dump_outputs=False, dump_forcing=False,
-                 dump_dir=''):
+                 dump_dir='', combine_multicalib='mean'):
         
         if type(model) is list:
             if len(model) != len(forcing) or len(model) != len(obs):
@@ -33,6 +33,7 @@ class SpotpySetup:
         self.dump_outputs = dump_outputs
         self.dump_forcing = dump_forcing
         self.dump_dir = dump_dir
+        self.combined_multicalib = combined_multicalib
         if not self.random_forcing:
             for m, f in zip(self.model, self.forcing):
                 m.set_forcing(forcing=f)
@@ -115,6 +116,9 @@ class SpotpySetup:
 
         if len(self.model) == 0:
             likes = likes[0]
+        elif len(self.model) > 1:
+            if self.combine_multicalib == 'mean':
+                likes = sum(likes) / len(likes) 
 
         return likes
 
