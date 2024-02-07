@@ -12,13 +12,13 @@ class SpotpySetup:
     def __init__(self, model, params, forcing, obs, warmup=365, obj_func=None,
                  invert_obj_func=False, dump_outputs=False, dump_forcing=False,
                  dump_dir=''):
-        self.model = model
+        self.model = [model]
         self.params = params
         self.params_spotpy = params.get_for_spotpy()
         self.random_forcing = params.needs_random_forcing()
-        self.forcing = forcing
-        self.forcing.apply_operations(params)
-        self.obs = obs.data[0]
+        self.forcing = [forcing]
+        self.forcing[0].apply_operations(params)
+        self.obs = [obs.data[0]]
         self.warmup = warmup
         self.obj_func = obj_func
         self.invert_obj_func = invert_obj_func
@@ -26,7 +26,7 @@ class SpotpySetup:
         self.dump_forcing = dump_forcing
         self.dump_dir = dump_dir
         if not self.random_forcing:
-            self.model.set_forcing(forcing=forcing)
+            self.model[0].set_forcing(forcing=forcing)
         if not obj_func:
             print("Objective function: Non parametric Kling-Gupta Efficiency.")
 
@@ -54,10 +54,10 @@ class SpotpySetup:
         params.set_values(param_values)
 
         if not params.constraints_satisfied() or not params.range_satisfied():
-            return np.random.rand(len(self.obs[self.warmup:]))
+            return np.random.rand(len(self.obs[0][self.warmup:]))
 
-        model = self.model
-        forcing = self.forcing
+        model = self.model[0]
+        forcing = self.forcing[0]
         if self.random_forcing:
             forcing.apply_operations(params, apply_to_all=False)
             model.run(parameters=params, forcing=forcing)
@@ -78,7 +78,7 @@ class SpotpySetup:
         return sim[self.warmup:]
 
     def evaluation(self):
-        return self.obs[self.warmup:]
+        return self.obs[0][self.warmup:]
 
     def objectivefunction(self, simulation, evaluation, params=None):
         if not self.obj_func:
