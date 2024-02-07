@@ -85,36 +85,38 @@ class SpotpySetup:
             return np.random.rand(len(self.obs[0][self.warmup:]))
 
         sims = []
-        if len(self.model > 1): # Multi-calibration
-            for i, (model, forcing) in enumerate(zip(self.model, self.forcing)):
-                forcing_filename = f'forcing_{i}.nc'
-                sim = individual_simulation(model, forcing, forcing_filename, params)
-                sims.append(sim)
-        else:
-            model = self.model[0]
-            forcing = self.forcing[0]
-            forcing_filename = f'forcing.nc'
+        for i, (model, forcing) in enumerate(zip(self.model, self.forcing)):
+            forcing_filename = f'forcing_{i}.nc'
+            if len(self.model) == 0:
+                forcing_filename = f'forcing.nc'
             sim = individual_simulation(model, forcing, forcing_filename, params)
-            sims = sim
+            sims.append(sim)
 
         return sims
 
     def evaluation(self):
-        return self.obs[0][self.warmup:]
+        obs = [o[self.warmup:] for o in self.obs]
+        return obs
 
     def objectivefunction(self, simulation, evaluation, params=None):
-        if not self.obj_func:
-            like = hb.spotpy.objectivefunctions.kge_non_parametric(evaluation,
-                                                                   simulation)
-        elif isinstance(self.obj_func, str):
-            like = hb.evaluate(simulation, evaluation, self.obj_func)
-        else:
-            like = self.obj_func(evaluation, simulation)
+        likes = []
+        for simu, eval in zip(simulation, evaluation):
+            if not self.obj_func:
+                like = hb.spotpy.objectivefunctions.kge_non_parametric(eval,
+                                                                       simu)
+            elif isinstance(self.obj_func, str):
+                like = hb.evaluate(simu, eval, self.obj_func)
+            else:
+                like = self.obj_func(eval, simu)
+    
+            if self.invert_obj_func:
+                like = -like
+            likes.append(like)
 
-        if self.invert_obj_func:
-            like = -like
+        if len(self.model) == 0:
+            likes = likes[0]
 
-        return like
+        return likes
 
 
 def evaluate(simulation, observation, metric):
