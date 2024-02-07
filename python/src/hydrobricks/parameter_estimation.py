@@ -12,13 +12,21 @@ class SpotpySetup:
     def __init__(self, model, params, forcing, obs, warmup=365, obj_func=None,
                  invert_obj_func=False, dump_outputs=False, dump_forcing=False,
                  dump_dir=''):
-        self.model = [model]
+        
+        if type(model) is list:
+            if len(model) != len(forcing) or len(model) != len(obs):
+                raise RuntimeError('The model, forcing and observation lists have different lengths.')
+            self.model = model
+            self.forcing = forcing
+            self.obs = [o.data[0] for o in obs]
+        else:
+            self.model = [model]
+            self.forcing = [forcing]
+            self.obs = [obs.data[0]]
         self.params = params
         self.params_spotpy = params.get_for_spotpy()
         self.random_forcing = params.needs_random_forcing()
-        self.forcing = [forcing]
-        self.forcing[0].apply_operations(params)
-        self.obs = [obs.data[0]]
+        self.forcing[:].apply_operations(params)
         self.warmup = warmup
         self.obj_func = obj_func
         self.invert_obj_func = invert_obj_func
@@ -26,7 +34,8 @@ class SpotpySetup:
         self.dump_forcing = dump_forcing
         self.dump_dir = dump_dir
         if not self.random_forcing:
-            self.model[0].set_forcing(forcing=forcing)
+            for m, f in zip(self.model, self.forcing):
+                m.set_forcing(forcing=f)
         if not obj_func:
             print("Objective function: Non parametric Kling-Gupta Efficiency.")
 
