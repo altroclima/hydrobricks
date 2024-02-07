@@ -56,17 +56,8 @@ class SpotpySetup:
                 raise RuntimeError('The parameter constraints could not be satisfied.')
 
         return x
-
-    def simulation(self, x):
-        params = self.params
-        param_values = dict(zip(x.name, x.random))
-        params.set_values(param_values)
-
-        if not params.constraints_satisfied() or not params.range_satisfied():
-            return np.random.rand(len(self.obs[0][self.warmup:]))
-
-        model = self.model[0]
-        forcing = self.forcing[0]
+    
+    def individual_simulation(self, model, forcing, forcing_filename, params):
         if self.random_forcing:
             forcing.apply_operations(params, apply_to_all=False)
             model.run(parameters=params, forcing=forcing)
@@ -82,9 +73,31 @@ class SpotpySetup:
             if self.dump_outputs:
                 model.dump_outputs(path)
             if self.dump_forcing:
-                forcing.save_as(os.path.join(path, 'forcing.nc'))
-
+                forcing.save_as(os.path.join(path, forcing_filename))
         return sim[self.warmup:]
+
+    def simulation(self, x):
+        params = self.params
+        param_values = dict(zip(x.name, x.random))
+        params.set_values(param_values)
+
+        if not params.constraints_satisfied() or not params.range_satisfied():
+            return np.random.rand(len(self.obs[0][self.warmup:]))
+
+        sims = []
+        if len(self.model > 1): # Multi-calibration
+            for i, (model, forcing) in enumerate(zip(self.model, self.forcing)):
+                forcing_filename = f'forcing_{i}.nc'
+                sim = individual_simulation(model, forcing, forcing_filename, params)
+                sims.append(sim)
+        else:
+            model = self.model[0]
+            forcing = self.forcing[0]
+            forcing_filename = f'forcing.nc'
+            sim = individual_simulation(model, forcing, forcing_filename, params)
+            sims = sim
+
+        return sims
 
     def evaluation(self):
         return self.obs[0][self.warmup:]
