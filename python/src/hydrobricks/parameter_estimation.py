@@ -26,14 +26,15 @@ class SpotpySetup:
         self.params = params
         self.params_spotpy = params.get_for_spotpy()
         self.random_forcing = params.needs_random_forcing()
-        self.forcing[:].apply_operations(params)
+        for f in self.forcing:
+            f.apply_operations(params)
         self.warmup = warmup
         self.obj_func = obj_func
         self.invert_obj_func = invert_obj_func
         self.dump_outputs = dump_outputs
         self.dump_forcing = dump_forcing
         self.dump_dir = dump_dir
-        self.combined_multicalib = combined_multicalib
+        self.combine_multicalib = combine_multicalib
         if not self.random_forcing:
             for m, f in zip(self.model, self.forcing):
                 m.set_forcing(forcing=f)
@@ -75,6 +76,8 @@ class SpotpySetup:
                 model.dump_outputs(path)
             if self.dump_forcing:
                 forcing.save_as(os.path.join(path, forcing_filename))
+
+        print("DEBUG sim[self.warmup:]",  sim[self.warmup:])
         return sim[self.warmup:]
 
     def simulation(self, x):
@@ -88,38 +91,52 @@ class SpotpySetup:
         sims = []
         for i, (model, forcing) in enumerate(zip(self.model, self.forcing)):
             forcing_filename = f'forcing_{i}.nc'
-            if len(self.model) == 0:
+            if len(self.model) == 1:
                 forcing_filename = f'forcing.nc'
-            sim = individual_simulation(model, forcing, forcing_filename, params)
+            sim = self.individual_simulation(model, forcing, forcing_filename, params)
             sims.append(sim)
 
         return sims
 
     def evaluation(self):
         obs = [o[self.warmup:] for o in self.obs]
+        print('self.obs', self.obs)
+        print('obs', obs)
         return obs
+    
+    def individual_objectivefunction(self, simu, eval):
+        if not self.obj_func:
+            print('DEBUG 1')
+            like = hb.spotpy.objectivefunctions.kge_non_parametric(eval,
+                                                                   simu)
+        elif isinstance(self.obj_func, str):
+            print('DEBUG 2')
+            like = hb.evaluate(simu, eval, self.obj_func)
+        else:
+            print('DEBUG 3')
+            like = self.obj_func(eval, simu)
+
+        if self.invert_obj_func:
+            print('DEBUG 4')
+            like = -like
+
 
     def objectivefunction(self, simulation, evaluation, params=None):
         likes = []
-        for simu, eval in zip(simulation, evaluation):
-            if not self.obj_func:
-                like = hb.spotpy.objectivefunctions.kge_non_parametric(eval,
-                                                                       simu)
-            elif isinstance(self.obj_func, str):
-                like = hb.evaluate(simu, eval, self.obj_func)
-            else:
-                like = self.obj_func(eval, simu)
-    
-            if self.invert_obj_func:
-                like = -like
-            likes.append(like)
-
-        if len(self.model) == 0:
-            likes = likes[0]
+        if len(self.model) == 1:
+            print('here 1')
+            print('simulation[0]', simulation[0], evaluation[0])
+            likes = self.individual_objectivefunction(simulation[0], evaluation[0])
+            print('likes', likes)
         elif len(self.model) > 1:
+            print('here 2')
+            for simu, eval in zip(simulation, evaluation):
+                like = self.individual_objectivefunction(simu, eval)
+                likes.append(like)
             if self.combine_multicalib == 'mean':
                 likes = sum(likes) / len(likes) 
 
+        print("DEBUG likes", likes)
         return likes
 
 
@@ -145,4 +162,7 @@ def evaluate(simulation, observation, metric):
     """
     eval_fct = getattr(importlib.import_module('HydroErr'), metric)
 
+    print("DEBUG simulation", simulation)
+    print("DEBUG observation", observation)
+    print("DEBUG eval_fct(simulation, observation)", eval_fct(simulation, observation))
     return eval_fct(simulation, observation)
