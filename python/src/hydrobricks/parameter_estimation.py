@@ -96,6 +96,7 @@ class SpotpySetup:
             sim = self.individual_simulation(model, forcing, forcing_filename, params)
             sims.append(sim)
 
+        print('sims', sims)
         return sims
 
     def evaluation(self):
@@ -115,18 +116,42 @@ class SpotpySetup:
         else:
             print('DEBUG 3')
             like = self.obj_func(eval, simu)
+            print("DEBUG like", like)
 
         if self.invert_obj_func:
             print('DEBUG 4')
             like = -like
+            print("DEBUG like", like)
+        return like
 
 
     def objectivefunction(self, simulation, evaluation, params=None):
         likes = []
         if len(self.model) == 1:
             print('here 1')
-            print('simulation[0]', simulation[0], evaluation[0])
-            likes = self.individual_objectivefunction(simulation[0], evaluation[0])
+            print('vectors', simulation, evaluation)
+            print('vectors[0]', simulation[0], evaluation[0])
+            print('lengths', len(simulation), len(evaluation))
+            print('types', type(simulation), type(evaluation))
+            print('types[0]', type(simulation[0]), type(evaluation[0]))
+            
+            if isinstance(simulation, list):
+                simu = simulation[0]
+            else:
+                print("DEBUG already only one simu")
+                ##### THIS IS SOMETHING THAT I HAVE TO UNDERSTAND. IS IT OK TO DO THAT???
+                simu = simulation
+            assert isinstance(simu, np.ndarray)
+            
+            if isinstance(evaluation, list):
+                eval = evaluation[0]
+            else:
+                print("DEBUG already only one eval")
+                ##### THIS IS SOMETHING THAT I HAVE TO UNDERSTAND. IS IT OK TO DO THAT???
+                eval = evaluation
+            assert isinstance(eval, np.ndarray)
+            
+            likes = self.individual_objectivefunction(simu, eval)
             print('likes', likes)
         elif len(self.model) > 1:
             print('here 2')
@@ -134,7 +159,7 @@ class SpotpySetup:
                 like = self.individual_objectivefunction(simu, eval)
                 likes.append(like)
             if self.combine_multicalib == 'mean':
-                likes = sum(likes) / len(likes) 
+                likes = sum(likes) / len(likes)
 
         print("DEBUG likes", likes)
         return likes
