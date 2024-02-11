@@ -107,61 +107,63 @@ class SpotpySetup:
     
     def individual_objectivefunction(self, simu, eval):
         if not self.obj_func:
-            print('DEBUG 1')
+            print('DEBUG individual_objectivefunction - if not self.obj_func')
             like = hb.spotpy.objectivefunctions.kge_non_parametric(eval,
                                                                    simu)
         elif isinstance(self.obj_func, str):
-            print('DEBUG 2')
+            print('DEBUG individual_objectivefunction - elif isinstance(self.obj_func, str)')
             like = hb.evaluate(simu, eval, self.obj_func)
         else:
-            print('DEBUG 3')
+            print('DEBUG individual_objectivefunction - else')
             like = self.obj_func(eval, simu)
-            print("DEBUG like", like)
+            print("DEBUG individual_objectivefunction - like", like)
 
         if self.invert_obj_func:
-            print('DEBUG 4')
+            print('DEBUG individual_objectivefunction - if self.invert_obj_func')
             like = -like
-            print("DEBUG like", like)
+            print("DEBUG individual_objectivefunction - like", like)
         return like
 
 
     def objectivefunction(self, simulation, evaluation, params=None):
         likes = []
         if len(self.model) == 1:
-            print('here 1')
-            print('vectors', simulation, evaluation)
-            print('vectors[0]', simulation[0], evaluation[0])
-            print('lengths', len(simulation), len(evaluation))
-            print('types', type(simulation), type(evaluation))
-            print('types[0]', type(simulation[0]), type(evaluation[0]))
+            print('DEBUG objectivefunction - if len(self.model) == 1')
+            print('DEBUG objectivefunction - simulation, evaluation', simulation, evaluation)
+            print('DEBUG objectivefunction - simulation[0], evaluation[0]', simulation[0], evaluation[0])
+            print('DEBUG objectivefunction - len(simulation), len(evaluation)', len(simulation), len(evaluation))
+            print('DEBUG objectivefunction - type(simulation), type(evaluation)', type(simulation), type(evaluation))
+            print('DEBUG objectivefunction - type(simulation[0]), type(evaluation[0])', type(simulation[0]), type(evaluation[0]))
             
             if isinstance(simulation, list):
+                print("DEBUG objectivefunction - Several simu")
                 simu = simulation[0]
             else:
-                print("DEBUG already only one simu")
+                print("DEBUG objectivefunction - Only one simu")
                 ##### THIS IS SOMETHING THAT I HAVE TO UNDERSTAND. IS IT OK TO DO THAT???
                 simu = simulation
             assert isinstance(simu, np.ndarray)
             
             if isinstance(evaluation, list):
+                print("DEBUG objectivefunction - Several eval")
                 eval = evaluation[0]
             else:
-                print("DEBUG already only one eval")
+                print("DEBUG objectivefunction - Only one eval")
                 ##### THIS IS SOMETHING THAT I HAVE TO UNDERSTAND. IS IT OK TO DO THAT???
                 eval = evaluation
             assert isinstance(eval, np.ndarray)
             
             likes = self.individual_objectivefunction(simu, eval)
-            print('likes', likes)
+            print('DEBUG objectivefunction - likes', likes)
         elif len(self.model) > 1:
-            print('here 2')
+            print('DEBUG objectivefunction - elif len(self.model) > 1')
             for simu, eval in zip(simulation, evaluation):
                 like = self.individual_objectivefunction(simu, eval)
                 likes.append(like)
             if self.combine_multicalib == 'mean':
                 likes = sum(likes) / len(likes)
 
-        print("DEBUG likes", likes)
+        print("DEBUG objectivefunction - return likes", likes)
         return likes
 
 
@@ -187,7 +189,7 @@ def evaluate(simulation, observation, metric):
     """
     eval_fct = getattr(importlib.import_module('HydroErr'), metric)
 
-    print("DEBUG simulation", simulation)
-    print("DEBUG observation", observation)
-    print("DEBUG eval_fct(simulation, observation)", eval_fct(simulation, observation))
+    print("DEBUG evaluate - simulation", simulation)
+    print("DEBUG evaluate - observation", observation)
+    print("DEBUG evaluate - eval_fct(simulation, observation)", eval_fct(simulation, observation))
     return eval_fct(simulation, observation)

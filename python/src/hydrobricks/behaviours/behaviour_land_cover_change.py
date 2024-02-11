@@ -228,12 +228,12 @@ class BehaviourLandCoverChange(Behaviour):
 
         # Populate the bounded instance (not needed for the ground type)
         if with_debris:
-            self._remove_rows_with_no_changes(ice_df)
+            #self._remove_rows_with_no_changes(ice_df)
             self._populate_bounded_instance('glacier_ice', 'm2', ice_df)
-            self._remove_rows_with_no_changes(debris_df)
+            #self._remove_rows_with_no_changes(debris_df)
             self._populate_bounded_instance('glacier_debris', 'm2', debris_df)
         else:
-            self._remove_rows_with_no_changes(glacier_df)
+            #self._remove_rows_with_no_changes(glacier_df)
             self._populate_bounded_instance('glacier', 'm2', glacier_df)
 
         if with_debris:
