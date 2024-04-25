@@ -714,6 +714,7 @@ class Catchment:
         dem = dem_array.read(1)
 
         test = False
+        print_tif = False
         if test:
             dem = np.array([[1., 2., 3., 4., 4.],
                             [5., 6., 7., 8., 8.],
@@ -834,20 +835,21 @@ class Catchment:
             print(ray_int, "ray_int")
             print(mapped, "mapped")
 
-        if i:
-            profile = dem_array.profile
-            with hb.rasterio.open(f'/home/anne-laure/Downloads/1_ray_{i}.tif', 'w', **profile) as dst:
-                dst.write(ray, 1)
-                dst.close()
-            with hb.rasterio.open(f'/home/anne-laure/Downloads/1_orthogonal_distance_{i}.tif', 'w', **profile) as dst:
-                dst.write(orthogonal_distance, 1)
-                dst.close()
-            with hb.rasterio.open(f'/home/anne-laure/Downloads/1_dem_filled_{i}.tif', 'w', **profile) as dst:
-                dst.write(dem_filled, 1)
-                dst.close()
-            with hb.rasterio.open(f'/home/anne-laure/Downloads/1_cast_shadows_{i}.tif', 'w', **profile) as dst:
-                dst.write(cast_shadows, 1)
-                dst.close()
+        if print_tif:
+            if i:
+                profile = dem_array.profile
+                with hb.rasterio.open(f'/home/anne-laure/Downloads/1_ray_{i}.tif', 'w', **profile) as dst:
+                    dst.write(ray, 1)
+                    dst.close()
+                with hb.rasterio.open(f'/home/anne-laure/Downloads/1_orthogonal_distance_{i}.tif', 'w', **profile) as dst:
+                    dst.write(orthogonal_distance, 1)
+                    dst.close()
+                with hb.rasterio.open(f'/home/anne-laure/Downloads/1_dem_filled_{i}.tif', 'w', **profile) as dst:
+                    dst.write(dem_filled, 1)
+                    dst.close()
+                with hb.rasterio.open(f'/home/anne-laure/Downloads/1_cast_shadows_{i}.tif', 'w', **profile) as dst:
+                    dst.write(cast_shadows, 1)
+                    dst.close()
 
         return cast_shadows
 
@@ -994,6 +996,14 @@ class Catchment:
         mean_annual_radiation[:, :] = np.nanmean(daily_radiation, axis=0)
         self.upscale_and_save_mean_annual_radiation_rasters(
             mean_annual_radiation, dem, output_path)
+
+        # Put the mask back on (we need the surrounding topography in the steps before)
+        # And make sure the padding lines are also set to nans and not 0
+        mean_annual_radiation[np.isnan(masked_dem_data)] = np.nan
+        mean_annual_radiation[0,:] = np.nan
+        mean_annual_radiation[-1,:] = np.nan
+        mean_annual_radiation[:,0] = np.nan
+        mean_annual_radiation[:,-1] = np.nan
 
         # Save the daily potential radiation to a netcdf file
         self._save_potential_radiation_netcdf(
