@@ -10,10 +10,10 @@ class ActionGlacierEvolutionDeltaH : public Action {
 
     ~ActionGlacierEvolutionDeltaH() override = default;
 
-    void ActionGlacierEvolutionDeltaH::AddLookupTables(int month, const string& landCoverName, const axi& hydroUnitIds,
-                                                       const axxd& areas, const axxd& volumes);
+    void AddLookupTables(int month, const string& landCoverName, const axi& hydroUnitIds,
+                         const axxd& areas, const axxd& volumes);
 
-    bool ActionGlacierEvolutionDeltaH::Init();
+    bool Init();
 
     bool Apply() override;
 
