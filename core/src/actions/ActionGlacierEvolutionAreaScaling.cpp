@@ -37,7 +37,8 @@ bool ActionGlacierEvolutionAreaScaling::Init() {
             unit->ChangeLandCoverAreaFraction(_landCoverName, fraction);
         } else if (std::abs(areaInModel - areaRef) > PRECISION) {
             wxLogError(_("The glacier area fraction in hydro unit %d does not match the lookup table "
-                         "initial area (%g vs %g)."), id, areaInModel, areaRef);
+                         "initial area (%g vs %g)."),
+                       id, areaInModel, areaRef);
             return false;
         }
 
@@ -53,6 +54,17 @@ bool ActionGlacierEvolutionAreaScaling::Init() {
     }
 
     return true;
+}
+
+void ActionGlacierEvolutionAreaScaling::Reset() {
+    // Set the land cover area fraction to 0 for all hydro units.
+    for (int id : _hydroUnitIds) {
+        HydroUnit* unit = _manager->GetHydroUnitById(id);
+        unit->ChangeLandCoverAreaFraction(_landCoverName, 0);
+    }
+
+    // Re-initialize.
+    Init();
 }
 
 bool ActionGlacierEvolutionAreaScaling::Apply(double) {
