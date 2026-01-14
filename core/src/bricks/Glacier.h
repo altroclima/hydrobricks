@@ -33,7 +33,7 @@ class Glacier : public LandCover {
     /**
      * @copydoc Brick::IsOk()
      */
-    bool IsOk() override;
+    [[nodiscard]] bool IsOk() override;
 
     /**
      * Get the ice container of the glacier.
@@ -45,7 +45,7 @@ class Glacier : public LandCover {
     /**
      * @copydoc Brick::IsGlacier()
      */
-    bool IsGlacier() override {
+    [[nodiscard]] bool IsGlacier() override {
         return true;
     }
 
@@ -57,17 +57,17 @@ class Glacier : public LandCover {
     /**
      * @copydoc Brick::SetInitialState()
      */
-    void SetInitialState(double value, const string& type) override;
+    void SetInitialState(double value, ContentType type) override;
 
     /**
      * @copydoc Brick::GetContent()
      */
-    double GetContent(const string& type) override;
+    double GetContent(ContentType type) override;
 
     /**
      * @copydoc Brick::UpdateContent()
      */
-    void UpdateContent(double value, const string& type) override;
+    void UpdateContent(double value, ContentType type) override;
 
     /**
      * @copydoc Brick::UpdateContentFromInputs()

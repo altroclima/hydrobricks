@@ -5,9 +5,10 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-import _hydrobricks as _hb
-import hydrobricks as hb
-from hydrobricks.actions.action import Action
+from hydrobricks._hydrobricks import (
+    ActionGlacierEvolutionDeltaH as _ActionGlacierEvolutionDeltaH,
+)
+from hydrobricks.actions import Action
 from hydrobricks.preprocessing.glacier_evolution_delta_h import GlacierEvolutionDeltaH
 
 
@@ -22,7 +23,8 @@ class ActionGlacierEvolutionDeltaH(Action):
 
     def __init__(self):
         super().__init__()
-        self.action = _hb.ActionGlacierEvolutionDeltaH()
+        self.name = "ActionGlacierEvolutionDeltaH"
+        self.action = _ActionGlacierEvolutionDeltaH()
 
     def load_from_csv(
             self,
@@ -175,32 +177,7 @@ class ActionGlacierEvolutionDeltaH(Action):
             land_cover: str,
             update_month: str | int
     ):
-
-        # Convert the month name to a number
-        if isinstance(update_month, int):
-            if update_month < 1 or update_month > 12:
-                raise ValueError("Month number must be between 1 and 12.")
-            month_num = update_month
-        elif isinstance(update_month, str):
-            month_mapping = {
-                'January': 1,
-                'February': 2,
-                'March': 3,
-                'April': 4,
-                'May': 5,
-                'June': 6,
-                'July': 7,
-                'August': 8,
-                'September': 9,
-                'October': 10,
-                'November': 11,
-                'December': 12
-            }
-            month_num = month_mapping.get(update_month, None)
-            if month_num is None:
-                raise ValueError(f"Invalid month name: {update_month}")
-        else:
-            raise ValueError("Month must be a string or an integer.")
+        month_num = self._convert_month_to_number(update_month)
 
         # Get the hydro unit ids from the first row
         hu_ids = lookup_table_area.columns.astype(int).values
@@ -218,3 +195,5 @@ class ActionGlacierEvolutionDeltaH(Action):
             "The areas and volumes tables do not have the same shape."
 
         self.action.add_lookup_tables(month_num, land_cover, hu_ids, areas, volumes)
+
+        self.is_initialized = True

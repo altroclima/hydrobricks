@@ -1,12 +1,16 @@
 from __future__ import annotations
 
+import warnings
 from typing import TYPE_CHECKING
 
 import numpy as np
 import pandas as pd
 from scipy import ndimage
 
-import hydrobricks as hb
+warnings.filterwarnings("ignore", category=DeprecationWarning, module="pysheds")
+
+from hydrobricks import pyshedsGrid
+from hydrobricks._optional import HAS_PYSHEDS
 
 if TYPE_CHECKING:
     from hydrobricks.catchment import Catchment
@@ -31,7 +35,7 @@ class CatchmentConnectivity:
     def calculate(
             self,
             mode: str = 'multiple',
-            force_connectivity: bool = True,
+            force_connectivity: bool = False,
             precision: int = 3
     ) -> pd.DataFrame:
         """
@@ -51,6 +55,7 @@ class CatchmentConnectivity:
             hydro units, proportionally to the length of the common border.
             If False, and if a hydro unit contributes mostly to surfaces out of the catchment,
             the connectivity will be nulled.
+            Default is False (recommended).
         precision
             The precision of the connectivity values. Default is 3.
             This is used to round the connectivity values to a given number of decimal places.
@@ -59,7 +64,7 @@ class CatchmentConnectivity:
         -------
         The hydro units connectivity.
         """
-        if not hb.has_pysheds:
+        if not HAS_PYSHEDS:
             raise ImportError("pysheds is required to do this.")
 
         if self.catchment.dem is None:
@@ -70,7 +75,7 @@ class CatchmentConnectivity:
 
         # Create a pysheds instance
         dem_path = self.catchment.dem.files[0]
-        grid = hb.pyshedsGrid.from_raster(dem_path)
+        grid = pyshedsGrid.from_raster(dem_path)
         dem = grid.read_raster(dem_path)
 
         # Fill pits and depressions in DEM and resolve flats

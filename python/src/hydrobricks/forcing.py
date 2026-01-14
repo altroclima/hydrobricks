@@ -18,8 +18,10 @@ import numpy as np
 import pandas as pd
 from cftime import num2date
 
-import hydrobricks as hb
-from hydrobricks.constants import TO_RAD
+from hydrobricks import Dataset, pyet
+from hydrobricks._constants import TO_RAD
+from hydrobricks._optional import HAS_NETCDF, HAS_PYET
+from hydrobricks.catchment import Catchment
 from hydrobricks.hydro_units import HydroUnits
 from hydrobricks.parameters import ParameterSet
 from hydrobricks.time_series import TimeSeries1D, TimeSeries2D
@@ -49,11 +51,21 @@ class Forcing:
         WIND = auto()  # Wind speed [m s-1]
         PRESSURE = auto()  # Atmospheric pressure [kPa]
 
-    def __init__(self, hydro_units: HydroUnits):
+    def __init__(
+            self,
+            spatial_entity: HydroUnits | Catchment
+    ):
+        if isinstance(spatial_entity, HydroUnits):
+            hydro_units = spatial_entity
+            catchment = None
+        elif isinstance(spatial_entity, Catchment):
+            hydro_units = spatial_entity.hydro_units
+            catchment = spatial_entity
+        else:
+            raise TypeError('The spatial_entity argument must be a HydroUnits or '
+                            'Catchment object, not {type(spatial_entity)}.')
+
         # Check hydro units
-        if not isinstance(hydro_units, HydroUnits):
-            raise TypeError('The hydro_units argument must be a HydroUnits '
-                            f'object, not {type(hydro_units)}.')
         if len(hydro_units.hydro_units) == 0:
             raise ValueError('The hydro_units argument must contain at least '
                              'one hydrological unit.')
@@ -61,6 +73,7 @@ class Forcing:
         super().__init__()
         self.data1D = TimeSeries1D()
         self.data2D = TimeSeries2D()
+        self.catchment = catchment
         self.hydro_units = hydro_units.hydro_units
         self._operations = []
         self._is_initialized = False
@@ -256,6 +269,12 @@ class Forcing:
         raster_hydro_units : str|Path
             Path to a raster containing the hydro unit ids to use for the
             spatialization.
+        apply_data_gradient : bool, optional
+            If True, elevation-based gradients will be retrieved from the data and
+            applied to the hydro units (e.g., for temperature and precipitation).
+            If False, the data will be regridded without applying any gradient.
+            Default is True for temperature and precipitation variables, and False
+            for other variables.
         """
         kwargs['type'] = 'spatialize_from_grid'
         self._operations.append(kwargs)
@@ -284,7 +303,7 @@ class Forcing:
         other options : see pyet documentation for function-specific options. These
             options will be passed to the pyet function.
         """
-        if not hb.has_pyet:
+        if not HAS_PYET:
             raise ImportError("pyet is required to do this.")
 
         kwargs['type'] = 'compute_pet'
@@ -334,7 +353,7 @@ class Forcing:
         max_compression
             Option to allow maximum compression for data in file.
         """
-        if not hb.has_netcdf:
+        if not HAS_NETCDF:
             raise ImportError("netcdf4 is required to do this.")
 
         if not self.is_initialized():
@@ -345,7 +364,7 @@ class Forcing:
         time = self.data2D.get_dates_as_mjd()
 
         # Create netCDF file
-        nc = hb.Dataset(path, 'w', 'NETCDF4')
+        nc = Dataset(path, 'w', 'NETCDF4')
 
         # Dimensions
         nc.createDimension('hydro_units', len(self.hydro_units))
@@ -381,11 +400,11 @@ class Forcing:
         path
             Path of the file to read.
         """
-        if not hb.has_netcdf:
+        if not HAS_NETCDF:
             raise ImportError("netcdf4 is required to do this.")
 
         # Open netCDF file
-        nc = hb.Dataset(path, 'r', 'NETCDF4')
+        nc = Dataset(path, 'r', 'NETCDF4')
 
         # Check that hydro units are the same
         hydro_units_nc = nc.variables['id'][:]
@@ -528,7 +547,7 @@ class Forcing:
                                  f'Here: {len(gradient)}')
 
         # Apply methods
-        for i_unit, unit in hydro_units.iterrows():
+        for i_unit, (_, unit) in enumerate(hydro_units.iterrows()):
 
             elevation = unit['elevation'].values
 
@@ -620,6 +639,38 @@ class Forcing:
             dim_x = kwargs.get('dim_x', 'x')
             dim_y = kwargs.get('dim_y', 'y')
             raster_hydro_units = kwargs.get('raster_hydro_units', '')
+            if variable in {self.Variable.P, self.Variable.T}:
+                apply_data_gradient = kwargs.get('apply_data_gradient', True)
+                if variable == self.Variable.P:
+                    gradient_type = kwargs.get('gradient_type', 'multiplicative')
+                elif variable == self.Variable.T:
+                    gradient_type = kwargs.get('gradient_type', 'additive')
+                else:
+                    gradient_type = kwargs.get('gradient_type', 'additive')
+            else:
+                apply_data_gradient = kwargs.get('apply_data_gradient', False)
+                gradient_type = kwargs.get('gradient_type', 'additive')
+
+            dem_path = None
+            if apply_data_gradient:
+                if self.catchment is None:
+                    raise ValueError("apply_data_gradient is True, but no catchment "
+                                     "is defined. The catchment is required to "
+                                     "retrieve the elevation-based gradients.")
+                if self.catchment.dem is None:
+                    raise ValueError("apply_data_gradient is True, but no DEM is "
+                                     "defined in the catchment. The DEM is required "
+                                     "to retrieve the elevation-based gradients.")
+
+                dem_path = self.catchment.dem.files
+                # Drop items with .aux.xml extension
+                dem_path = [p for p in dem_path if not p.endswith('.aux.xml')]
+                if len(dem_path) > 1:
+                    raise ValueError("apply_data_gradient is True, but the catchment "
+                                     "contains multiple DEM files. Only one DEM file "
+                                     "is supported for the elevation-based gradients.")
+                dem_path = dem_path[0]
+
             self.data2D.regrid_from_netcdf(
                 path,
                 file_pattern=file_pattern,
@@ -628,14 +679,18 @@ class Forcing:
                 dim_time=dim_time,
                 dim_x=dim_x,
                 dim_y=dim_y,
-                raster_hydro_units=raster_hydro_units
+                hydro_units=self.hydro_units,
+                raster_hydro_units=raster_hydro_units,
+                apply_data_gradient=apply_data_gradient,
+                gradient_type=gradient_type,
+                dem_path=dem_path
             )
             self.data2D.data_name.append(variable)
         else:
             raise ValueError(f'Unknown method: {method}')
 
     def _apply_pet_computation(self, method: str, use: list[str], **kwargs):
-        if not hb.has_pyet:
+        if not HAS_PYET:
             raise ImportError("pyet is required to do this.")
 
         pyet_args = {}
@@ -659,7 +714,7 @@ class Forcing:
         # Loop over the hydro units to compute the PET (pyet xarray implementation is
         # not working as expected in multiplicative operations)
         pet = np.zeros((len(self.data2D.time), len(self.hydro_units)))
-        for i_unit, unit in self.hydro_units.iterrows():
+        for i_unit, (_, unit) in enumerate(self.hydro_units.iterrows()):
             if use_unit_elevation:
                 pyet_args['elevation'] = unit['elevation'].values
             if use_unit_latitude:
@@ -678,45 +733,45 @@ class Forcing:
     @staticmethod
     def _compute_pet(method: str, pyet_args: dict) -> np.ndarray:
         if method in ['Penman', 'penman']:
-            return hb.pyet.penman(**pyet_args)
+            return pyet.penman(**pyet_args)
         elif method in ['Penman-Monteith', 'pm']:
-            return hb.pyet.pm(**pyet_args)
+            return pyet.pm(**pyet_args)
         elif method in ['ASCE-PM', 'pm_asce']:
-            return hb.pyet.pm_asce(**pyet_args)
+            return pyet.pm_asce(**pyet_args)
         elif method in ['FAO-56', 'pm_fao56']:
-            return hb.pyet.pm_fao56(**pyet_args)
+            return pyet.pm_fao56(**pyet_args)
         elif method in ['Priestley-Taylor', 'priestley_taylor']:
-            return hb.pyet.priestley_taylor(**pyet_args)
+            return pyet.priestley_taylor(**pyet_args)
         elif method in ['Kimberly-Penman', 'kimberly_penman']:
-            return hb.pyet.kimberly_penman(**pyet_args)
+            return pyet.kimberly_penman(**pyet_args)
         elif method in ['Thom-Oliver', 'thom_oliver']:
-            return hb.pyet.thom_oliver(**pyet_args)
+            return pyet.thom_oliver(**pyet_args)
         elif method in ['Blaney-Criddle', 'blaney_criddle']:
-            return hb.pyet.blaney_criddle(**pyet_args)
+            return pyet.blaney_criddle(**pyet_args)
         elif method in ['Hamon', 'hamon']:
-            return hb.pyet.hamon(**pyet_args)
+            return pyet.hamon(**pyet_args)
         elif method in ['Romanenko', 'romanenko']:
-            return hb.pyet.romanenko(**pyet_args)
+            return pyet.romanenko(**pyet_args)
         elif method in ['Linacre', 'linacre']:
-            return hb.pyet.linacre(**pyet_args)
+            return pyet.linacre(**pyet_args)
         elif method in ['Haude', 'haude']:
-            return hb.pyet.haude(**pyet_args)
+            return pyet.haude(**pyet_args)
         elif method in ['Turc', 'turc']:
-            return hb.pyet.turc(**pyet_args)
+            return pyet.turc(**pyet_args)
         elif method in ['Jensen-Haise', 'jensen_haise']:
-            return hb.pyet.jensen_haise(**pyet_args)
+            return pyet.jensen_haise(**pyet_args)
         elif method in ['McGuinness-Bordne', 'mcguinness_bordne']:
-            return hb.pyet.mcguinness_bordne(**pyet_args)
+            return pyet.mcguinness_bordne(**pyet_args)
         elif method in ['Hargreaves', 'hargreaves']:
-            return hb.pyet.hargreaves(**pyet_args)
+            return pyet.hargreaves(**pyet_args)
         elif method in ['FAO-24 radiation', 'fao_24']:
-            return hb.pyet.fao_24(**pyet_args)
+            return pyet.fao_24(**pyet_args)
         elif method in ['Abtew', 'abtew']:
-            return hb.pyet.abtew(**pyet_args)
+            return pyet.abtew(**pyet_args)
         elif method in ['Makkink', 'makkink']:
-            return hb.pyet.makkink(**pyet_args)
+            return pyet.makkink(**pyet_args)
         elif method in ['Oudin', 'oudin']:
-            return hb.pyet.oudin(**pyet_args)
+            return pyet.oudin(**pyet_args)
         else:
             raise ValueError(f'Unknown PET method: {method}')
 

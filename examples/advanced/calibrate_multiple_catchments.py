@@ -1,25 +1,41 @@
 import matplotlib.pyplot as plt
 import spotpy
-from examples._helpers.models_setup_helper import ModelSetupHelper
 
 import hydrobricks as hb
 import hydrobricks.trainer as trainer
+from examples._helpers.models_setup_helper import ModelSetupHelper
 
-# Set up the model
-helper = ModelSetupHelper(
+# Set up the model for the Sitter
+helper_appenzell = ModelSetupHelper(
     'ch_sitter_appenzell',
     start_date='1981-01-01',
     end_date='2020-12-31'
 )
-helper.create_hydro_units_from_csv_file(
+helper_appenzell.create_hydro_units_from_csv_file(
     filename='hydro_units_elevation.csv'
 )
-forcing = helper.get_forcing_data_from_csv_file(
-    ref_elevation=1250,
+forcing_appenzell = helper_appenzell.get_forcing_data_from_csv_file(
+    ref_elevation=1253,
     use_precip_gradient=True
 )
-obs = helper.get_obs_data_from_csv_file()
-socont, parameters = helper.get_model_and_params_socont()
+obs_appenzell = helper_appenzell.get_obs_data_from_csv_file()
+socont_appenzell, _ = helper_appenzell.get_model_and_params_socont()
+
+# Set up the model for the Rhone at Gletsch
+helper_stgallen = ModelSetupHelper(
+    'ch_sitter_stgallen',
+    start_date='1981-01-01',
+    end_date='2020-12-31'
+)
+helper_stgallen.create_hydro_units_from_csv_file(
+    filename='elevation_bands.csv'
+)
+forcing_stgallen = helper_stgallen.get_forcing_data_from_csv_file(
+    ref_elevation=1045,
+    use_precip_gradient=True
+)
+obs_stgallen = helper_stgallen.get_obs_data_from_csv_file()
+socont_stgallen, parameters = helper_stgallen.get_model_and_params_socont()
 
 # Select the parameters to optimize/analyze
 parameters.allow_changing = [
@@ -34,10 +50,10 @@ parameters.allow_changing = [
 
 # Setup SPOTPY (we need to invert the NSE score as SCE-UA minimizes it)
 spot_setup = trainer.SpotpySetup(
-    socont,
+    [socont_appenzell, socont_stgallen],
     parameters,
-    forcing,
-    obs,
+    [forcing_appenzell, forcing_stgallen],
+    [obs_appenzell, obs_stgallen],
     warmup=365,
     obj_func='kge_2012',
     invert_obj_func=True
@@ -71,24 +87,3 @@ fields = [
     if word.startswith('sim')
 ]
 best_simulation = list(best_model_run[fields])
-
-# Plot simulation
-fig_simulation = plt.figure(figsize=(16, 9))
-ax = plt.subplot(1, 1, 1)
-ax.plot(
-    best_simulation,
-    color='black',
-    linestyle='solid',
-    label='Best obj. func.=' + str(best_obj_func)
-)
-ax.plot(
-    spot_setup.evaluation(),
-    'r.',
-    markersize=3,
-    label='Observation data'
-)
-plt.xlabel('Number of Observation Points')
-plt.ylabel('Discharge [l s-1]')
-plt.legend(loc='upper right')
-plt.tight_layout()
-plt.show()

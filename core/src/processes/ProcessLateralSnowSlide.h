@@ -13,6 +13,8 @@
 
 #include "ProcessLateral.h"
 
+class FluxToBrick;
+
 class ProcessLateralSnowSlide : public ProcessLateral {
   public:
     explicit ProcessLateralSnowSlide(WaterContainer* container);
@@ -22,7 +24,7 @@ class ProcessLateralSnowSlide : public ProcessLateral {
     /**
      * @copydoc Process::IsOk()
      */
-    bool IsOk() override;
+    [[nodiscard]] bool IsOk() override;
 
     /**
      * Register the process parameters and forcing in the settings model.
@@ -41,6 +43,13 @@ class ProcessLateralSnowSlide : public ProcessLateral {
      */
     void SetParameters(const ProcessSettings& processSettings) override;
 
+    /**
+     * @copydoc Process::IsLateralProcess()
+     */
+    [[nodiscard]] bool IsLateralProcess() const override {
+        return true;
+    }
+
   protected:
     float _slope_deg;             // Slope of the hydro unit [°]
     float* _coeff;                // Coefficient in the equation []
@@ -54,6 +63,17 @@ class ProcessLateralSnowSlide : public ProcessLateral {
      * @copydoc Process::GetRates()
      */
     vecDouble GetRates() override;
+
+  private:
+    /**
+     * Avoid unrealistic accumulation rates by not redistributing snow if the target snowpack has more than twice the
+     * overall maximum snow depth.
+     *
+     * @param rate The rate to check.
+     * @param flux The flux to the target brick.
+     * @return the corrected rate.
+     */
+    double AvoidUnrealisticAccumulation(double rate, Flux* flux);
 };
 
 #endif  // HYDROBRICKS_PROCESS_LATERAL_SNOWSLIDE_H

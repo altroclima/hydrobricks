@@ -5,6 +5,78 @@ The format is based on [Keep a Changelog(https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning(https://semver.org/spec/v2.0.0.html).
 
 
+## 0.8.6 - 2025-12-18
+
+### Added
+
+- Adding computation of ice thickness changes (observation-based delta-h).
+- Adding a check that the action has been initialized.
+- Checking that the model is initialized before adding actions.
+- Adding helpers to the Results class.
+
+### Changed
+
+- Refactoring the parameters definition (no impact for the users).
+- Moving examples to the root folder.
+- Converting stringly-typed identifiers to enums (no impact for the users).
+
+
+## 0.8.5 - 2025-08-28
+
+### Added
+
+- Prevents lateral snow slide from causing unrealistic snow accumulation in target areas by limiting redistribution when the target snowpack already exceeds a threshold.
+
+
+## 0.8.4 - 2025-08-28
+
+### Added
+
+- Adding a snow to ice transformation process for glaciers following the SWAT model approach (Luo et al., 2013).
+- Adding a snow to ice transformation action that transforms all snow to ice at a given date (e.g., end of the melt season).
+
+### Fixed
+
+- Fixing an issue when glacier volume is increasing further than the initial volume in the glacier evolution methods.
+
+### Changed
+
+- In the connectivity calculation, the 'force_connectivity' option was changed to False by default due to potential issues in some cases (e.g., exchange back and forth).
+
+
+## 0.8.3 - 2025-08-14
+
+### Fixed
+
+- Fixing an issue with the gradient-based interpolation for temperature and precipitation when spatializing from gridded data.
+
+
+## 0.8.2 - 2025-08-12
+
+### Breaking changes
+
+- The extraction of meteorological data from netCDF files (spatialize_from_gridded_data) has changed. The function now computes elevation gradients by default for temperature and precipitation. In order to access to the DEM, the class must be initialized with the catchment object (forcing = hb.Forcing(catchment)) instead of the hydro units object. This gradient-based interpolation can be disabled with apply_data_gradient=False.
+
+### Added
+
+- Adding a gradient-based interpolation for temperature and precipitation when spatializing from gridded data.
+- Making the SnowSlide parameters accessible.
+- Adding a parameter to the SnowSlide method to control the overall maximum snow depth.
+
+### Fixed
+
+- The actions were not correctly re-initialized when resetting the model. This is now fixed.
+- Improving land cover fraction checks in actions.
+- Fixing issue related to hydro unit ids when loading from csv file. The hydro units were not retrieved from the file, but assumed increasing, which is wrong when sorted by elevation.
+- Fixing hydro unit ids in land cover extraction.
+- Fixing index issues related to Pandas iterrows() usage.
+
+### Changed
+
+- Avoid snow redistribution to too small areas.
+- Capping the snow redistribution rate to 1000 mm of SWE.
+
+
 ## 0.8.1 - 2025-08-06
 
 ### Fixed

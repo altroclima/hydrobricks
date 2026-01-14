@@ -6,8 +6,8 @@ from typing import TYPE_CHECKING
 import numpy as np
 import pandas as pd
 
-import hydrobricks as hb
-from hydrobricks.constants import ICE_WE
+from hydrobricks._constants import ICE_WE
+from hydrobricks._optional import HAS_PYPROJ
 
 if TYPE_CHECKING:
     from hydrobricks.catchment import Catchment
@@ -44,7 +44,7 @@ class GlacierEvolutionAreaScaling:
             self,
             catchment: Catchment,
             ice_thickness: str | Path,
-            nb_increments: int = 100
+            nb_increments: int = 200
     ):
         """
         Extract the initial ice thickness to be used in compute_lookup_table()
@@ -57,7 +57,7 @@ class GlacierEvolutionAreaScaling:
         ice_thickness
             Path to the TIF file containing the glacier thickness in meters.
         nb_increments
-            Number of increments for glacier mass balance calculation. Default is 100.
+            Number of increments for glacier mass balance calculation. Default is 200.
         """
 
         # Check that the catchment has been discretized
@@ -66,7 +66,7 @@ class GlacierEvolutionAreaScaling:
                              "Please run create_elevation_bands() first.")
 
         # Extract the ice thickness from a TIF file.
-        if not hb.has_pyproj:
+        if not HAS_PYPROJ:
             raise ImportError("pyproj is required to do this.")
 
         self.hydro_units = catchment.hydro_units.hydro_units
@@ -207,7 +207,7 @@ class GlacierEvolutionAreaScaling:
         self.px_ice_we = np.empty((1, len(glacier_df)), dtype=object)
 
         # Update the dataframe with the ice thickness
-        for i, row in glacier_df.iterrows():
+        for i_row, (idx, row) in enumerate(glacier_df.iterrows()):
             unit_id = row[('hydro_unit_id', '-')]
 
             # Get the ice thickness for the corresponding band and unit
@@ -216,7 +216,7 @@ class GlacierEvolutionAreaScaling:
             masked_thickness = masked_thickness[masked_thickness > 0]
             masked_thickness = masked_thickness[~np.isnan(masked_thickness)]
 
-            self.px_ice_we[0, i] = masked_thickness * ICE_WE * 1000
+            self.px_ice_we[0, i_row] = masked_thickness * ICE_WE * 1000
 
             # Compute the mean thickness
             if masked_thickness.size > 0:
@@ -224,7 +224,7 @@ class GlacierEvolutionAreaScaling:
             else:
                 mean_thickness = 0.0
 
-            glacier_df.at[i, ('glacier_thickness', 'm')] = mean_thickness
+            glacier_df.at[idx, ('glacier_thickness', 'm')] = mean_thickness
 
         self.glacier_df = glacier_df
 

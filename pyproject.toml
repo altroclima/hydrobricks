@@ -1,9 +1,12 @@
 [project]
 name = "hydrobricks"
-version = "0.8.1"
+version = "0.8.6"
 authors = [
-    { name = "Pascal Horton", email = "pascal.horton@unibe.ch" },
-    { name = "Anne-Laure Argentin" },
+    { name = "Pascal Horton et al.", email = "pascal.horton@unibe.ch" }
+]
+maintainers = [
+    { name = "Pascal Horton" },
+    { name = "Anne-Laure Argentin" }
 ]
 description = "A modular hydrological modelling framework"
 readme = "python/README.md"
@@ -49,7 +52,7 @@ line-length = 88
 
 [tool.isort]
 profile = "black"
-known_first_party = ["_hydrobricks", "hydrobricks", "hydrobricks.*"]
+known_first_party = ["hydrobricks", "hydrobricks.*"]
 
 [tool.pytest.ini_options]
 minversion = "6.0"
@@ -58,7 +61,8 @@ xfail_strict = true
 filterwarnings = [
     "error",  # Treat all warnings as errors
     "ignore:The 'shapely.geos' module is deprecated:DeprecationWarning",
-    "ignore:The distutils package is deprecated:DeprecationWarning"
+    "ignore:The distutils package is deprecated:DeprecationWarning",
+    "ignore:angle from rectified to skew grid parameter lost in conversion to CF:UserWarning"
 ]
 testpaths = ["python/tests"]
 

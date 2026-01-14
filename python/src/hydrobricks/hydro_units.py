@@ -4,8 +4,9 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-import hydrobricks as hb
-from _hydrobricks import SettingsBasin
+from hydrobricks import Dataset
+from hydrobricks._hydrobricks import SettingsBasin
+from hydrobricks._optional import HAS_NETCDF
 from hydrobricks.units import (
     Unit,
     convert_unit_df,
@@ -182,11 +183,11 @@ class HydroUnits:
         path
             Path of the file to create.
         """
-        if not hb.has_netcdf:
+        if not HAS_NETCDF:
             raise ImportError("netcdf4 is required to do this.")
 
         # Create netCDF file
-        nc = hb.Dataset(path, 'w', 'NETCDF4')
+        nc = Dataset(path, 'w', 'NETCDF4')
 
         # Global attributes
         nc.version = 1.0
@@ -253,6 +254,16 @@ class HydroUnits:
             else:
                 self.hydro_units = pd.concat([self.hydro_units, df], axis=1)
 
+    def get_nb_hydro_units(self) -> int:
+        """
+        Get the number of hydro units.
+
+        Returns
+        -------
+        Number of hydro units.
+        """
+        return len(self.hydro_units)
+
     def check_land_cover_fractions_not_empty(self):
         """
         Check that the land cover fractions are not empty. If there is a single one
@@ -295,7 +306,7 @@ class HydroUnits:
         ground_name = self.prefix_fraction + 'ground'
 
         # Apply land cover fractions one hydro unit at a time (order might differ)
-        for idx, row in land_cover_change.iterrows():
+        for _, row in land_cover_change.iterrows():
             id = row['hydro_unit']
             land_cover_area = row.iloc[1]
 
@@ -384,14 +395,24 @@ class HydroUnits:
 
         # Loop through the rows and set the connectivity to the basin settings
         for _, row in connectivity.iterrows():
-            hydro_unit_id = int(row['id'])
-            connectivity_dict = ast.literal_eval(row['connectivity'])
+            if isinstance(row['id'], pd.Series):
+                hydro_unit_id = int(row['id'].iloc[0])
+            else:
+                hydro_unit_id = int(row['id'])
 
-            if not connectivity_dict:
+            if isinstance(row['connectivity'], pd.Series):
+                connectivity_val = row[('connectivity', '-')]
+            else:
+                connectivity_val = row['connectivity']
+
+            if isinstance(connectivity_val, str):
+                connectivity_val = ast.literal_eval(connectivity_val)
+
+            if not connectivity_val:
                 continue
 
             # Extract connected unit IDs and their ratios
-            connected_units = {int(k): float(v) for k, v in connectivity_dict.items()}
+            connected_units = {int(k): float(v) for k, v in connectivity_val.items()}
 
             # Check that the sum of ratios is 1
             total_ratio = sum(connected_units.values())

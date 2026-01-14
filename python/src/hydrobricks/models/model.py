@@ -6,16 +6,14 @@ from abc import ABC, abstractmethod
 import HydroErr
 import numpy as np
 
-import _hydrobricks as _hb
-import hydrobricks as hb
-import hydrobricks.utils as utils
-from _hydrobricks import ModelHydro
+from hydrobricks._hydrobricks import ModelHydro, close_log, init_log
 from hydrobricks.actions.action import Action
 from hydrobricks.forcing import Forcing
 from hydrobricks.hydro_units import HydroUnits
 from hydrobricks.models.model_settings import ModelSettings
 from hydrobricks.parameters import ParameterSet
 from hydrobricks.trainer import evaluate
+from hydrobricks.utils import Timer, date_as_mjd, dump_config_file, validate_kwargs
 
 
 class Model(ABC):
@@ -98,7 +96,7 @@ class Model(ABC):
             self.spatial_structure = spatial_structure
 
             # Initialize log
-            _hb.init_log(str(output_path))
+            init_log(str(output_path))
 
             # Modelling period
             self.settings.set_timer(start_date, end_date, 1, "day")
@@ -158,7 +156,7 @@ class Model(ABC):
             if not self.model.is_ok():
                 raise RuntimeError('Model is not OK.')
 
-            timer = utils.Timer()
+            timer = Timer()
             timer.start()
 
             if not self.model.run():
@@ -175,7 +173,7 @@ class Model(ABC):
 
     @staticmethod
     def cleanup():
-        _hb.close_log()
+        close_log()
 
     def initialize_state_variables(
             self,
@@ -206,7 +204,7 @@ class Model(ABC):
         """
         self.model.clear_time_series()
         time = forcing.data2D.time.to_numpy()
-        time = utils.date_as_mjd(time)
+        time = date_as_mjd(time)
         ids = self.spatial_structure.get_ids().to_numpy().flatten()
         for data_name, data in zip(forcing.data2D.data_name, forcing.data2D.data):
             data_name = str(data_name)
@@ -228,6 +226,13 @@ class Model(ABC):
         action
             The action object. The dates must be sorted.
         """
+        if not action.is_initialized:
+            raise RuntimeError(f'The action {action.name} has not been initialized.')
+
+        if not self._is_initialized:
+            raise RuntimeError('The model has not been initialized. '
+                               'Please run setup() before adding actions.')
+
         return self.model.add_action(action.action)
 
     def get_actions_nb(self) -> int:
@@ -274,7 +279,7 @@ class Model(ABC):
             },
             'logger': 'all' if self.record_all else ''
         }
-        utils.dump_config_file(settings, directory, name, file_type)
+        dump_config_file(settings, directory, name, file_type)
 
     def get_outlet_discharge(self) -> np.ndarray:
         """
@@ -420,7 +425,7 @@ class Model(ABC):
 
     def _validate_kwargs(self, kwargs):
         # Validate optional keyword arguments.
-        utils.validate_kwargs(kwargs, self.allowed_kwargs)
+        validate_kwargs(kwargs, self.allowed_kwargs)
 
     def _generate_structure(self):
         """

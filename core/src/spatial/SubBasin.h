@@ -19,7 +19,7 @@ class SubBasin : public wxObject {
      * @param basinSettings The settings to initialize the sub-basin with.
      * @return True if the initialization was successful, false otherwise.
      */
-    bool Initialize(SettingsBasin& basinSettings);
+    [[nodiscard]] bool Initialize(SettingsBasin& basinSettings);
 
     /**
      * Build the basin with the given settings.
@@ -34,7 +34,7 @@ class SubBasin : public wxObject {
      * @param basinSettings The settings to assign the fractions with.
      * @return True if the assignment was successful, false otherwise.
      */
-    bool AssignFractions(SettingsBasin& basinSettings);
+    [[nodiscard]] bool AssignFractions(SettingsBasin& basinSettings);
 
     /**
      * Reset the sub-basin to its initial state.
@@ -51,7 +51,7 @@ class SubBasin : public wxObject {
      *
      * @return True if the sub-basin is valid, false otherwise.
      */
-    bool IsOk();
+    [[nodiscard]] bool IsOk();
 
     /**
      * Add a brick to the sub-basin.
@@ -88,6 +88,15 @@ class SubBasin : public wxObject {
      * @return The hydro unit at the specified index.
      */
     HydroUnit* GetHydroUnit(int index);
+
+    /**
+     * Get all hydro units in the sub-basin.
+     *
+     * @return A vector of pointers to all hydro units.
+     */
+    vector<HydroUnit*> GetHydroUnits() {
+        return _hydroUnits;
+    }
 
     /**
      * Get a hydro unit by its ID.
@@ -139,7 +148,7 @@ class SubBasin : public wxObject {
      * @param name The name of the brick to check for.
      * @return True if the sub-basin has the brick, false otherwise.
      */
-    bool HasBrick(const string& name);
+    [[nodiscard]] bool HasBrick(const string& name);
 
     /**
      * Get a brick by its name.
@@ -163,7 +172,7 @@ class SubBasin : public wxObject {
      * @param name The name of the splitter to check for.
      * @return True if the sub-basin has the splitter, false otherwise.
      */
-    bool HasSplitter(const string& name);
+    [[nodiscard]] bool HasSplitter(const string& name);
 
     /**
      * Get a splitter by its name.
@@ -178,7 +187,7 @@ class SubBasin : public wxObject {
      *
      * @return True if the sub-basin has an incoming flow, false otherwise.
      */
-    bool HasIncomingFlow();
+    [[nodiscard]] bool HasIncomingFlow();
 
     /**
      * Add an input connector to the sub-basin.
@@ -214,14 +223,14 @@ class SubBasin : public wxObject {
      *
      * @return True if the computation was successful, false otherwise.
      */
-    bool ComputeOutletDischarge();
+    [[nodiscard]] bool ComputeOutletDischarge();
 
     /**
      * Get the area of the sub-basin.
      *
      * @return The area of the sub-basin in square meters.
      */
-    double GetArea() {
+    double GetArea() const {
         return _area;
     }
 
