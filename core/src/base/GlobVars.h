@@ -1,11 +1,6 @@
 #ifndef GLOB_VARS_H
 #define GLOB_VARS_H
 
-// Config
-namespace config {
-extern double timeStepInDays;  // Default time step in days
-}
-
 // Constants
 namespace constants {
 constexpr double pi = 3.1415926535897932384626433832795;

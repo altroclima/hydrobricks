@@ -1,6 +1,8 @@
 #include <gtest/gtest.h>
 #include <wx/stdpaths.h>
 
+#include <memory>
+
 #include "ModelHydro.h"
 #include "ProcessOutflowLinear.h"
 #include "SettingsModel.h"
@@ -10,7 +12,7 @@ class ModelBasics : public ::testing::Test {
   protected:
     SettingsModel _model1;
     SettingsModel _model2;
-    TimeSeriesUniform* _tsPrecip{};
+    std::unique_ptr<TimeSeriesUniform> _tsPrecip;
 
     void SetUp() override {
         // Model 1: simple linear storage
@@ -45,13 +47,13 @@ class ModelBasics : public ::testing::Test {
         _model2.AddProcessOutput("outlet");
         _model2.AddLoggingToItem("outlet");
 
-        auto data = new TimeSeriesDataRegular(GetMJD(2020, 1, 1), GetMJD(2020, 1, 10), 1, Day);
+        auto data = std::make_unique<TimeSeriesDataRegular>(GetMJD(2020, 1, 1), GetMJD(2020, 1, 10), 1, Day);
         data->SetValues({0.0, 10.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0});
-        _tsPrecip = new TimeSeriesUniform(Precipitation);
-        _tsPrecip->SetData(data);
+        _tsPrecip = std::make_unique<TimeSeriesUniform>(Precipitation);
+        _tsPrecip->SetData(std::move(data));
     }
     void TearDown() override {
-        wxDELETE(_tsPrecip);
+        // RAII cleanup via unique_ptr
     }
 };
 
@@ -65,7 +67,7 @@ TEST_F(ModelBasics, Model1BuildsCorrectly) {
     ModelHydro model(&subBasin);
     model.Initialize(_model1, basinSettings);
 
-    EXPECT_TRUE(model.IsOk());
+    EXPECT_TRUE(model.IsValid());
 }
 
 TEST_F(ModelBasics, Model1RunsCorrectly) {
@@ -78,7 +80,7 @@ TEST_F(ModelBasics, Model1RunsCorrectly) {
     ModelHydro model(&subBasin);
     model.Initialize(_model1, basinSettings);
 
-    ASSERT_TRUE(model.AddTimeSeries(_tsPrecip));
+    ASSERT_TRUE(model.AddTimeSeries(std::unique_ptr<TimeSeries>(std::move(_tsPrecip))));
     ASSERT_TRUE(model.AttachTimeSeriesToHydroUnits());
 
     EXPECT_TRUE(model.Run());
@@ -94,7 +96,7 @@ TEST_F(ModelBasics, Model2BuildsCorrectly) {
     ModelHydro model(&subBasin);
     model.Initialize(_model2, basinSettings);
 
-    EXPECT_TRUE(model.IsOk());
+    EXPECT_TRUE(model.IsValid());
 }
 
 TEST_F(ModelBasics, Model2RunsCorrectly) {
@@ -107,7 +109,7 @@ TEST_F(ModelBasics, Model2RunsCorrectly) {
     ModelHydro model(&subBasin);
     model.Initialize(_model2, basinSettings);
 
-    ASSERT_TRUE(model.AddTimeSeries(_tsPrecip));
+    ASSERT_TRUE(model.AddTimeSeries(std::unique_ptr<TimeSeries>(std::move(_tsPrecip))));
     ASSERT_TRUE(model.AttachTimeSeriesToHydroUnits());
 
     EXPECT_TRUE(model.Run());
@@ -123,13 +125,13 @@ TEST_F(ModelBasics, TimeSeriesEndsTooEarly) {
     ModelHydro model(&subBasin);
     model.Initialize(_model1, basinSettings);
 
-    auto data = new TimeSeriesDataRegular(GetMJD(2020, 1, 1), GetMJD(2020, 1, 9), 1, Day);
+    auto data = std::make_unique<TimeSeriesDataRegular>(GetMJD(2020, 1, 1), GetMJD(2020, 1, 9), 1, Day);
     data->SetValues({0.0, 10.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0});
-    auto tsPrecipSingleRainyDay = new TimeSeriesUniform(Precipitation);
-    tsPrecipSingleRainyDay->SetData(data);
+    auto tsPrecipSingleRainyDay = std::make_unique<TimeSeriesUniform>(Precipitation);
+    tsPrecipSingleRainyDay->SetData(std::move(data));
 
     wxLogNull logNo;
-    ASSERT_FALSE(model.AddTimeSeries(tsPrecipSingleRainyDay));
+    ASSERT_FALSE(model.AddTimeSeries(std::move(tsPrecipSingleRainyDay)));
 }
 
 TEST_F(ModelBasics, TimeSeriesStartsTooLate) {
@@ -142,13 +144,13 @@ TEST_F(ModelBasics, TimeSeriesStartsTooLate) {
     ModelHydro model(&subBasin);
     model.Initialize(_model1, basinSettings);
 
-    auto data = new TimeSeriesDataRegular(GetMJD(2020, 1, 2), GetMJD(2020, 1, 10), 1, Day);
+    auto data = std::make_unique<TimeSeriesDataRegular>(GetMJD(2020, 1, 2), GetMJD(2020, 1, 10), 1, Day);
     data->SetValues({0.0, 10.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0});
-    auto tsPrecipSingleRainyDay = new TimeSeriesUniform(Precipitation);
-    tsPrecipSingleRainyDay->SetData(data);
+    auto tsPrecipSingleRainyDay = std::make_unique<TimeSeriesUniform>(Precipitation);
+    tsPrecipSingleRainyDay->SetData(std::move(data));
 
     wxLogNull logNo;
-    ASSERT_FALSE(model.AddTimeSeries(tsPrecipSingleRainyDay));
+    ASSERT_FALSE(model.AddTimeSeries(std::move(tsPrecipSingleRainyDay)));
 }
 
 TEST_F(ModelBasics, ModelDumpsOutputs) {
@@ -161,7 +163,7 @@ TEST_F(ModelBasics, ModelDumpsOutputs) {
     ModelHydro model(&subBasin);
     model.Initialize(_model2, basinSettings);
 
-    ASSERT_TRUE(model.AddTimeSeries(_tsPrecip));
+    ASSERT_TRUE(model.AddTimeSeries(std::unique_ptr<TimeSeries>(std::move(_tsPrecip))));
     ASSERT_TRUE(model.AttachTimeSeriesToHydroUnits());
 
     EXPECT_TRUE(model.Run());
@@ -185,10 +187,10 @@ TEST_F(ModelBasics, Model1WithEulerExplicitWithNoOutflowClosesBalance) {
 
     model.Initialize(settingsModel, basinSettings);
 
-    ASSERT_TRUE(model.AddTimeSeries(_tsPrecip));
+    ASSERT_TRUE(model.AddTimeSeries(std::unique_ptr<TimeSeries>(std::move(_tsPrecip))));
     ASSERT_TRUE(model.AttachTimeSeriesToHydroUnits());
 
-    EXPECT_TRUE(model.IsOk());
+    EXPECT_TRUE(model.IsValid());
     EXPECT_TRUE(model.Run());
 
     Logger* logger = model.GetLogger();
@@ -221,10 +223,10 @@ TEST_F(ModelBasics, Model1WithHeunExplicitWithNoOutflowClosesBalance) {
 
     model.Initialize(settingsModel, basinSettings);
 
-    ASSERT_TRUE(model.AddTimeSeries(_tsPrecip));
+    ASSERT_TRUE(model.AddTimeSeries(std::unique_ptr<TimeSeries>(std::move(_tsPrecip))));
     ASSERT_TRUE(model.AttachTimeSeriesToHydroUnits());
 
-    EXPECT_TRUE(model.IsOk());
+    EXPECT_TRUE(model.IsValid());
     EXPECT_TRUE(model.Run());
 
     Logger* logger = model.GetLogger();
@@ -257,10 +259,10 @@ TEST_F(ModelBasics, Model1WithRungeKuttaWithNoOutflowClosesBalance) {
 
     model.Initialize(settingsModel, basinSettings);
 
-    ASSERT_TRUE(model.AddTimeSeries(_tsPrecip));
+    ASSERT_TRUE(model.AddTimeSeries(std::unique_ptr<TimeSeries>(std::move(_tsPrecip))));
     ASSERT_TRUE(model.AttachTimeSeriesToHydroUnits());
 
-    EXPECT_TRUE(model.IsOk());
+    EXPECT_TRUE(model.IsValid());
     EXPECT_TRUE(model.Run());
 
     Logger* logger = model.GetLogger();
@@ -289,10 +291,10 @@ TEST_F(ModelBasics, Model1WithEulerExplicitClosesBalance) {
     settingsModel.SetSolver("euler_explicit");
     model.Initialize(settingsModel, basinSettings);
 
-    ASSERT_TRUE(model.AddTimeSeries(_tsPrecip));
+    ASSERT_TRUE(model.AddTimeSeries(std::unique_ptr<TimeSeries>(std::move(_tsPrecip))));
     ASSERT_TRUE(model.AttachTimeSeriesToHydroUnits());
 
-    EXPECT_TRUE(model.IsOk());
+    EXPECT_TRUE(model.IsValid());
     EXPECT_TRUE(model.Run());
 
     Logger* logger = model.GetLogger();
@@ -321,10 +323,10 @@ TEST_F(ModelBasics, Model1WithHeunExplicitClosesBalance) {
     settingsModel.SetSolver("heun_explicit");
     model.Initialize(settingsModel, basinSettings);
 
-    ASSERT_TRUE(model.AddTimeSeries(_tsPrecip));
+    ASSERT_TRUE(model.AddTimeSeries(std::unique_ptr<TimeSeries>(std::move(_tsPrecip))));
     ASSERT_TRUE(model.AttachTimeSeriesToHydroUnits());
 
-    EXPECT_TRUE(model.IsOk());
+    EXPECT_TRUE(model.IsValid());
     EXPECT_TRUE(model.Run());
 
     Logger* logger = model.GetLogger();
@@ -351,10 +353,10 @@ TEST_F(ModelBasics, Model2ClosesBalance) {
     ModelHydro model(&subBasin);
     model.Initialize(_model2, basinSettings);
 
-    ASSERT_TRUE(model.AddTimeSeries(_tsPrecip));
+    ASSERT_TRUE(model.AddTimeSeries(std::unique_ptr<TimeSeries>(std::move(_tsPrecip))));
     ASSERT_TRUE(model.AttachTimeSeriesToHydroUnits());
 
-    EXPECT_TRUE(model.IsOk());
+    EXPECT_TRUE(model.IsValid());
     EXPECT_TRUE(model.Run());
 
     Logger* logger = model.GetLogger();

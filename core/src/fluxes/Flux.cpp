@@ -24,3 +24,9 @@ void Flux::UpdateFlux(double amount) {
         _amount = amount;
     }
 }
+
+void Flux::Validate() const {
+    if (!IsValid()) {
+        throw ModelConfigError(_("Flux validation failed. Check that all required properties are correctly defined."));
+    }
+}

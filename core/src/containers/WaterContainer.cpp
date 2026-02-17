@@ -13,12 +13,13 @@ WaterContainer::WaterContainer(Brick* brick)
       _parent(brick),
       _overflow(nullptr) {}
 
-bool WaterContainer::IsOk() {
-    if (_inputs.empty()) {
+bool WaterContainer::IsValid(bool checkProcesses) const {
+    if (!checkProcesses) {
         return true;
     }
 
-    for (auto process : GetParentBrick()->GetProcesses()) {
+    for (int i = 0; i < GetParentBrick()->GetProcessCount(); ++i) {
+        auto process = GetParentBrick()->GetProcess(i);
         if (process->GetWaterContainer() == this) {
             return true;
         }
@@ -26,6 +27,13 @@ bool WaterContainer::IsOk() {
     wxLogError(_("A container of the brick %s has no process attached."), GetParentBrick()->GetName());
 
     return false;
+}
+
+void WaterContainer::Validate() const {
+    if (!IsValid()) {
+        throw ModelConfigError(
+            wxString::Format(_("A container of the brick %s has no process attached."), GetParentBrick()->GetName()));
+    }
 }
 
 void WaterContainer::SubtractAmountFromDynamicContentChange(double change) {
@@ -49,11 +57,13 @@ void WaterContainer::ApplyConstraints(double timeStep) {
     // Get outgoing change rates
     vecDoublePt outgoingRates;
     double outputs = 0;
-    for (auto process : _parent->GetProcesses()) {
+    for (int i = 0; i < _parent->GetProcessCount(); ++i) {
+        auto process = _parent->GetProcess(i);
         if (process->GetWaterContainer() != this) {
             continue;
         }
-        for (auto flux : process->GetOutputFluxes()) {
+        for (int j = 0; j < process->GetOutputFluxCount(); ++j) {
+            Flux* flux = process->GetOutputFlux(j);
             double* changeRate = flux->GetChangeRatePointer();
             if (changeRate == nullptr) {
                 // For example when the originating brick has an area = 0.
@@ -64,10 +74,10 @@ void WaterContainer::ApplyConstraints(double timeStep) {
             if (*changeRate < 0) {
                 *changeRate = 0;
             } else if (*changeRate > 10000) {
-                throw ConceptionIssue(
+                throw RuntimeError(
                     wxString::Format(_("Change rate %f in process %s is too high."), *changeRate, process->GetName()));
             }
-            wxASSERT(*changeRate > -EPSILON_D);
+            wxASSERT(GreaterThanOrEqual(*changeRate, 0, EPSILON_D));
             outgoingRates.push_back(changeRate);
             outputs += *changeRate;
         }
@@ -96,7 +106,7 @@ void WaterContainer::ApplyConstraints(double timeStep) {
         if (*changeRate < 0) {
             *changeRate = 0;
         }
-        wxASSERT(*changeRate > -EPSILON_D);
+        wxASSERT(GreaterThanOrEqual(*changeRate, 0, EPSILON_D));
         incomingRates.push_back(changeRate);
         inputs += *changeRate;
     }
@@ -111,12 +121,12 @@ void WaterContainer::ApplyConstraints(double timeStep) {
         for (auto rate : outgoingRates) {
             wxASSERT(rate != nullptr);
             wxASSERT(*rate < 1000);
-            wxASSERT(*rate > -EPSILON_D);
+            wxASSERT(GreaterThanOrEqual(*rate, 0, EPSILON_D));
             wxASSERT(*rate >= 0);
-            if (*rate <= EPSILON_D) {
+            if (NearlyZero(*rate, EPSILON_D)) {
                 continue;
             }
-            if (std::abs(diff - change) < PRECISION) {
+            if (NearlyEqual(diff, change, PRECISION)) {
                 *rate = 0;
                 continue;
             }
@@ -130,23 +140,24 @@ void WaterContainer::ApplyConstraints(double timeStep) {
             double diff = (content + inputsStatic + change * timeStep - *_capacity) / timeStep;
             // If it has an overflow, use it
             if (HasOverflow()) {
-                if (_overflow->GetOutputFluxes()[0]->GetChangeRatePointer() != nullptr) {
-                    *(_overflow->GetOutputFluxes()[0]->GetChangeRatePointer()) = diff;
+                if (_overflow->GetOutputFlux(0)->GetChangeRatePointer() != nullptr) {
+                    *(_overflow->GetOutputFlux(0)->GetChangeRatePointer()) = diff;
                     return;
                 }
-                throw ShouldNotHappen();
+                throw ShouldNotHappen(
+                    _("WaterContainer::ApplyConstraints - Overflow exists but has no change rate pointer"));
             }
             // Check that it is not only due to forcing
             if (content + inputsStatic > *_capacity) {
-                throw ConceptionIssue(
+                throw ModelConfigError(
                     _("Forcing is coming directly into a brick with limited capacity and no overflow."));
             }
             // Limit the different rates proportionally
             for (auto rate : incomingRates) {
                 wxASSERT(rate != nullptr);
                 wxASSERT(*rate < 1000);
-                wxASSERT(*rate > -EPSILON_D);
-                if (*rate == 0.0) {
+                wxASSERT(GreaterThanOrEqual(*rate, 0, EPSILON_D));
+                if (NearlyZero(*rate, EPSILON_D)) {
                     continue;
                 }
                 *rate -= diff * std::abs((*rate) / inputs);
@@ -156,11 +167,13 @@ void WaterContainer::ApplyConstraints(double timeStep) {
 }
 
 void WaterContainer::SetOutgoingRatesToZero() {
-    for (auto process : _parent->GetProcesses()) {
+    for (int i = 0; i < _parent->GetProcessCount(); ++i) {
+        auto process = _parent->GetProcess(i);
         if (process->GetWaterContainer() != this) {
             continue;
         }
-        for (auto flux : process->GetOutputFluxes()) {
+        for (int j = 0; j < process->GetOutputFluxCount(); ++j) {
+            Flux* flux = process->GetOutputFlux(j);
             double* changeRate = flux->GetChangeRatePointer();
             if (changeRate == nullptr) {
                 // For example when the originating brick has an area = 0.
@@ -177,8 +190,8 @@ void WaterContainer::Finalize() {
     _content += _contentChangeDynamic + _contentChangeStatic;
     _contentChangeDynamic = 0;
     _contentChangeStatic = 0;
-    wxASSERT(_content >= -PRECISION);
-    if (_content < -PRECISION) {
+    wxASSERT(GreaterThanOrEqual(_content, 0, PRECISION));
+    if (LessThan(_content, 0, PRECISION)) {
         wxLogError(_("Water container %s has negative content (%f)."), GetParentBrick()->GetName(), _content);
         _content = 0;
     }
@@ -194,7 +207,7 @@ void WaterContainer::SaveAsInitialState() {
     _initialState = _content;
 }
 
-double WaterContainer::SumIncomingFluxes() {
+double WaterContainer::SumIncomingFluxes() const {
     double sum = 0;
     for (auto& input : _inputs) {
         sum += input->GetAmount();
@@ -211,7 +224,7 @@ vecDoublePt WaterContainer::GetDynamicContentChanges() {
     return vecDoublePt{&_contentChangeDynamic};
 }
 
-double WaterContainer::GetTargetFillingRatio() {
+double WaterContainer::GetTargetFillingRatio() const {
     wxASSERT(GetMaximumCapacity() > 0);
     return wxMax(0.0, wxMin(1.0, GetContentWithChanges() / GetMaximumCapacity()));
 }

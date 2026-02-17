@@ -25,6 +25,11 @@ set(VCPKG_LIBRARY_LINKAGE "static")
 # Project name
 project(hydrobricks)
 
+# Set C++ standard
+set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_EXTENSIONS OFF)
+
 # OPTIONS
 
 # Version number
@@ -48,6 +53,7 @@ endif (WIN32)
 option(BUILD_TESTS "Do you want to build the tests (recommended) ?" ON)
 option(BUILD_CLI "Do you want to build the command-line version ?" ON)
 option(BUILD_PYBINDINGS "Do you want to build the Python bindings ?" ON)
+option(USE_SANITIZERS "Enable AddressSanitizer and UndefinedBehaviorSanitizer in debug builds ?" OFF)
 
 # Disable testing tree
 set(BUILD_TESTING OFF)
@@ -64,10 +70,32 @@ set(wxBUILD_SHARED OFF)
 FetchContent_Declare(
     wxWidgets
     GIT_REPOSITORY https://github.com/wxWidgets/wxWidgets.git
-    GIT_TAG v3.2.7)
+    GIT_TAG v3.2.9)
 FetchContent_MakeAvailable(wxWidgets)
 
 include_directories(${wxWidgets_SOURCE_DIR}/include)
+if (WIN32)
+    include_directories(${wxWidgets_BINARY_DIR}/lib/vc_x64_lib/$<IF:$<CONFIG:Debug>,baseud,baseu>)
+    message(STATUS "wxWidgets setup dir = ${wxWidgets_BINARY_DIR}/lib/vc_x64_lib/$<IF:$<CONFIG:Debug>,baseud,baseu>")
+else ()
+    # On Unix-like systems, wxWidgets generates setup.h in lib/wx/include/<toolkit>-<configuration> Find the actual
+    # setup.h directory dynamically (version-agnostic)
+    include_directories(${wxWidgets_BINARY_DIR}/lib)
+
+    # Try to find the setup.h directory dynamically. First try the more common non-debug variant, then fall back to
+    # debug variant if needed
+    file(GLOB WX_SETUP_INCLUDE_DIR "${wxWidgets_BINARY_DIR}/lib/wx/include/base-unicode-static-*")
+    if (NOT WX_SETUP_INCLUDE_DIR)
+        file(GLOB WX_SETUP_INCLUDE_DIR "${wxWidgets_BINARY_DIR}/lib/wx/include/base-unicode-debug-static-*")
+    endif ()
+
+    if (WX_SETUP_INCLUDE_DIR)
+        include_directories(${WX_SETUP_INCLUDE_DIR})
+        message(STATUS "wxWidgets setup dir = ${WX_SETUP_INCLUDE_DIR}")
+    else ()
+        message(WARNING "Could not find wxWidgets setup.h directory. Build may fail.")
+    endif ()
+endif ()
 link_directories(${wxWidgets_BINARY_DIR}/lib)
 message(STATUS "wxWidgets include dir = ${wxWidgets_SOURCE_DIR}/include")
 message(STATUS "wxWidgets lib dir = ${wxWidgets_BINARY_DIR}/lib")
@@ -89,7 +117,7 @@ message(STATUS "yaml-cpp lib dir = ${yaml-cpp_BINARY_DIR}/lib")
 FetchContent_Declare(
     pybind11
     GIT_REPOSITORY https://github.com/pybind/pybind11.git
-    GIT_TAG v3.0.0)
+    GIT_TAG v3.0.1)
 
 # Find packages
 find_package(netCDF CONFIG REQUIRED)
