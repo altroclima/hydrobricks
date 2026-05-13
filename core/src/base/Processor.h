@@ -9,11 +9,11 @@
 
 class ModelHydro;
 
-class Processor : public wxObject {
+class Processor {
   public:
     explicit Processor();
 
-    ~Processor() override;
+    virtual ~Processor();
 
     /**
      * Initialize the processor with the solver settings.
@@ -39,7 +39,7 @@ class Processor : public wxObject {
      *
      * @return the number of state variables.
      */
-    int GetStateVariableCount() const;
+    [[nodiscard]] int GetStateVariableCount() const;
 
     /**
      * Process the time step.
@@ -50,12 +50,12 @@ class Processor : public wxObject {
     bool ProcessTimeStep(double timeStepInDays);
 
     /**
-     * Get the state variables vector pointer.
+     * Get the state variables as a span of pointers.
      *
-     * @return the pointer to the state variables vector.
+     * @return a span viewing the state variable pointers.
      */
-    vecDoublePt* GetStateVariablesVectorPt() {
-        return &_stateVariableChanges;
+    std::span<double*> GetStateVariables() {
+        return _stateVariableChanges;
     }
 
     /**
@@ -100,7 +100,7 @@ class Processor : public wxObject {
      *
      * @param values the state variable changes to store.
      */
-    void StoreStateVariableChanges(vecDoublePt& values);
+    void StoreStateVariableChanges(std::span<double*> values);
 
     /**
      * Apply direct changes to the brick.

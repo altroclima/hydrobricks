@@ -1,16 +1,18 @@
 #ifndef HYDROBRICKS_SOLVER_H
 #define HYDROBRICKS_SOLVER_H
 
+#include <memory>
+
 #include "Includes.h"
 #include "SettingsModel.h"
 
 class Processor;
 
-class Solver : public wxObject {
+class Solver {
   public:
     explicit Solver();
 
-    ~Solver() override = default;
+    virtual ~Solver() = default;
 
     /**
      * Apply the solver.
@@ -26,7 +28,7 @@ class Solver : public wxObject {
      * @param solverSettings The solver settings.
      * @return A new generated solver.
      */
-    static Solver* Factory(const SolverSettings& solverSettings);
+    static std::unique_ptr<Solver> Factory(const SolverSettings& solverSettings);
 
     /**
      * Connect the solver to a processor.
@@ -34,7 +36,7 @@ class Solver : public wxObject {
      * @param processor The processor to connect with.
      */
     void Connect(Processor* processor) {
-        wxASSERT(processor);
+        assert(processor);
         _processor = processor;
     }
 

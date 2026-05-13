@@ -1,6 +1,6 @@
 #include <gtest/gtest.h>
-#include <wx/stdpaths.h>
 
+#include <filesystem>
 #include <memory>
 
 #include "ModelHydro.h"
@@ -47,9 +47,9 @@ class ModelBasics : public ::testing::Test {
         _model2.AddProcessOutput("outlet");
         _model2.AddLoggingToItem("outlet");
 
-        auto data = std::make_unique<TimeSeriesDataRegular>(GetMJD(2020, 1, 1), GetMJD(2020, 1, 10), 1, Day);
+        auto data = std::make_unique<TimeSeriesDataRegular>(GetMJD(2020, 1, 1), GetMJD(2020, 1, 10), 1, TimeUnit::Day);
         data->SetValues({0.0, 10.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0});
-        _tsPrecip = std::make_unique<TimeSeriesUniform>(Precipitation);
+        _tsPrecip = std::make_unique<TimeSeriesUniform>(VariableType::Precipitation);
         _tsPrecip->SetData(std::move(data));
     }
     void TearDown() override {
@@ -125,12 +125,10 @@ TEST_F(ModelBasics, TimeSeriesEndsTooEarly) {
     ModelHydro model(&subBasin);
     model.Initialize(_model1, basinSettings);
 
-    auto data = std::make_unique<TimeSeriesDataRegular>(GetMJD(2020, 1, 1), GetMJD(2020, 1, 9), 1, Day);
+    auto data = std::make_unique<TimeSeriesDataRegular>(GetMJD(2020, 1, 1), GetMJD(2020, 1, 9), 1, TimeUnit::Day);
     data->SetValues({0.0, 10.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0});
-    auto tsPrecipSingleRainyDay = std::make_unique<TimeSeriesUniform>(Precipitation);
+    auto tsPrecipSingleRainyDay = std::make_unique<TimeSeriesUniform>(VariableType::Precipitation);
     tsPrecipSingleRainyDay->SetData(std::move(data));
-
-    wxLogNull logNo;
     ASSERT_FALSE(model.AddTimeSeries(std::move(tsPrecipSingleRainyDay)));
 }
 
@@ -144,12 +142,10 @@ TEST_F(ModelBasics, TimeSeriesStartsTooLate) {
     ModelHydro model(&subBasin);
     model.Initialize(_model1, basinSettings);
 
-    auto data = std::make_unique<TimeSeriesDataRegular>(GetMJD(2020, 1, 2), GetMJD(2020, 1, 10), 1, Day);
+    auto data = std::make_unique<TimeSeriesDataRegular>(GetMJD(2020, 1, 2), GetMJD(2020, 1, 10), 1, TimeUnit::Day);
     data->SetValues({0.0, 10.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0});
-    auto tsPrecipSingleRainyDay = std::make_unique<TimeSeriesUniform>(Precipitation);
+    auto tsPrecipSingleRainyDay = std::make_unique<TimeSeriesUniform>(VariableType::Precipitation);
     tsPrecipSingleRainyDay->SetData(std::move(data));
-
-    wxLogNull logNo;
     ASSERT_FALSE(model.AddTimeSeries(std::move(tsPrecipSingleRainyDay)));
 }
 
@@ -168,7 +164,7 @@ TEST_F(ModelBasics, ModelDumpsOutputs) {
 
     EXPECT_TRUE(model.Run());
 
-    EXPECT_TRUE(model.DumpOutputs(wxStandardPaths::Get().GetTempDir().ToStdString()));
+    EXPECT_TRUE(model.DumpOutputs(std::filesystem::temp_directory_path().string()));
 }
 
 TEST_F(ModelBasics, Model1WithEulerExplicitWithNoOutflowClosesBalance) {

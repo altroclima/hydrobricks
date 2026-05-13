@@ -4,11 +4,11 @@
 #include "ActionsManager.h"
 #include "Includes.h"
 
-class Action : public wxObject {
+class Action {
   public:
     Action();
 
-    ~Action() override = default;
+    virtual ~Action() = default;
 
     /**
      * Initialize the action.
@@ -57,7 +57,7 @@ class Action : public wxObject {
      * @param date the date to insert.
      * @return the index for insertion.
      */
-    int GetIndexForInsertion(double date) const;
+    [[nodiscard]] int GetIndexForInsertion(double date) const;
 
     /**
      * Check if the land cover area fraction is valid.

@@ -18,32 +18,31 @@ Brick::Brick()
     _water = std::make_unique<WaterContainer>(this);
 }
 
-Brick* Brick::Factory(const BrickSettings& brickSettings) {
+std::unique_ptr<Brick> Brick::Factory(const BrickSettings& brickSettings) {
     BrickType type = BrickTypeFromString(brickSettings.type);
     if (type == BrickType::Unknown) {
-        wxLogError(_("Brick type '%s' not recognized. %s"), brickSettings.type, GetBrickTypeSuggestions());
+        LogError("Brick type '{}' not recognized. {}", brickSettings.type, GetBrickTypeSuggestions());
         return nullptr;
     }
-    Brick* brick = Factory(type);
-    return brick;  // Already logged on failure inside enum factory if any
+    return Factory(type);
 }
 
-Brick* Brick::Factory(BrickType type) {
+std::unique_ptr<Brick> Brick::Factory(BrickType type) {
     switch (type) {
         case BrickType::Storage:
-            return new Storage();
+            return std::make_unique<Storage>();
         case BrickType::GenericLandCover:
-            return new GenericLandCover();
+            return std::make_unique<GenericLandCover>();
         case BrickType::Glacier:
-            return new Glacier();
+            return std::make_unique<Glacier>();
         case BrickType::Urban:
-            return new Urban();
+            return std::make_unique<Urban>();
         case BrickType::Vegetation:
-            return new Vegetation();
+            return std::make_unique<Vegetation>();
         case BrickType::Snowpack:
-            return new Snowpack();
+            return std::make_unique<Snowpack>();
         default:
-            wxLogError(_("Brick type enum not recognized."));
+            LogError("Brick type enum not recognized.");
             return nullptr;
     }
 }
@@ -62,7 +61,7 @@ void Brick::SaveAsInitialState() {
 bool Brick::IsValid(bool checkProcesses) const {
     if (checkProcesses) {
         if (_processes.empty()) {
-            wxLogError(_("The brick %s has no process attached"), _name);
+            LogError("The brick {} has no process attached", _name);
             return false;
         }
         for (const auto& process : _processes) {
@@ -76,8 +75,8 @@ bool Brick::IsValid(bool checkProcesses) const {
 
 void Brick::Validate() const {
     if (!IsValid()) {
-        throw ModelConfigError(wxString::Format(
-            _("The brick %s validation failed. Check that all processes are properly configured."), _name));
+        throw ModelConfigError(
+            std::format("The brick {} validation failed. Check that all processes are properly configured.", _name));
     }
 }
 
@@ -88,33 +87,42 @@ void Brick::SetParameters(const BrickSettings& brickSettings) {
 }
 
 void Brick::AttachFluxIn(Flux* flux) {
-    wxASSERT(flux);
+    assert(flux);
     if (flux->GetType() != ContentType::Water) {
         throw ModelConfigError(
-            wxString::Format(_("The flux type '%s' should be water."), ContentTypeToString(flux->GetType())));
+            std::format("The flux type '{}' should be water.", ContentTypeToString(flux->GetType())));
     }
     _water->AttachFluxIn(flux);
 }
 
-bool Brick::HasParameter(const BrickSettings& brickSettings, const string& name) {
+void Brick::AttachFluxIn(std::unique_ptr<Flux> flux) {
+    assert(flux);
+    if (flux->GetType() != ContentType::Water) {
+        throw ModelConfigError(
+            std::format("The flux type '{}' should be water.", ContentTypeToString(flux->GetType())));
+    }
+    _water->AttachFluxInOwned(std::move(flux));
+}
+
+bool Brick::HasParameter(const BrickSettings& brickSettings, std::string_view name) {
     return std::any_of(brickSettings.parameters.begin(), brickSettings.parameters.end(),
                        [&name](const Parameter& parameter) { return parameter.GetName() == name; });
 }
 
-const float* Brick::GetParameterValuePointer(const BrickSettings& brickSettings, const string& name) {
+const float* Brick::GetParameterValuePointer(const BrickSettings& brickSettings, std::string_view name) {
     for (auto& parameter : brickSettings.parameters) {
         if (parameter.GetName() == name) {
-            wxASSERT(parameter.GetValuePointer());
+            assert(parameter.GetValuePointer());
             return parameter.GetValuePointer();
         }
     }
 
-    throw ModelConfigError(wxString::Format(_("The parameter '%s' could not be found."), name));
+    throw ModelConfigError(std::format("The parameter '{}' could not be found.", name));
 }
 
 Process* Brick::GetProcess(size_t index) const {
-    wxASSERT(_processes.size() > index);
-    wxASSERT(_processes[index]);
+    assert(_processes.size() > index);
+    assert(_processes[index]);
 
     return _processes[index].get();
 }
@@ -129,8 +137,7 @@ void Brick::SetInitialState(double value, ContentType type) {
             _water->SetInitialState(value);
             break;
         default:
-            throw ModelConfigError(
-                wxString::Format(_("The content type '%s' is not supported."), ContentTypeToString(type)));
+            throw ModelConfigError(std::format("The content type '{}' is not supported.", ContentTypeToString(type)));
     }
 }
 
@@ -139,8 +146,7 @@ double Brick::GetContent(ContentType type) const {
         case ContentType::Water:
             return _water->GetContentWithoutChanges();
         default:
-            throw ModelConfigError(
-                wxString::Format(_("The content type '%s' is not supported."), ContentTypeToString(type)));
+            throw ModelConfigError(std::format("The content type '{}' is not supported.", ContentTypeToString(type)));
     }
 }
 
@@ -150,8 +156,7 @@ void Brick::UpdateContent(double value, ContentType type) {
             _water->UpdateContent(value);
             break;
         default:
-            throw ModelConfigError(
-                wxString::Format(_("The content type '%s' is not supported."), ContentTypeToString(type)));
+            throw ModelConfigError(std::format("The content type '{}' is not supported.", ContentTypeToString(type)));
     }
 }
 
@@ -197,7 +202,7 @@ int Brick::GetProcessConnectionCount() const {
     return counter;
 }
 
-double* Brick::GetBaseValuePointer(const string& name) {
+double* Brick::GetBaseValuePointer(std::string_view name) {
     if ((name == "water" || name == "water_content") && _water) {
         return _water->GetContentPointer();
     }
@@ -205,6 +210,6 @@ double* Brick::GetBaseValuePointer(const string& name) {
     return nullptr;
 }
 
-double* Brick::GetValuePointer(const string&) {
+double* Brick::GetValuePointer(std::string_view) {
     return nullptr;
 }

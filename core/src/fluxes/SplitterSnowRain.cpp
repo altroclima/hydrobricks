@@ -9,7 +9,7 @@ SplitterSnowRain::SplitterSnowRain()
 
 bool SplitterSnowRain::IsValid() const {
     if (_outputs.size() != 2) {
-        wxLogError(_("SplitterSnowRain should have 2 outputs."));
+        LogError("SplitterSnowRain should have 2 outputs.");
         return false;
     }
 
@@ -22,12 +22,12 @@ void SplitterSnowRain::SetParameters(const SplitterSettings& splitterSettings) {
 }
 
 void SplitterSnowRain::AttachForcing(Forcing* forcing) {
-    if (forcing->GetType() == Precipitation) {
+    if (forcing->GetType() == VariableType::Precipitation) {
         _precipitation = forcing;
-    } else if (forcing->GetType() == Temperature) {
+    } else if (forcing->GetType() == VariableType::Temperature) {
         _temperature = forcing;
     } else {
-        throw ModelConfigError(_("Forcing must be of type Temperature or Precipitation"));
+        throw ModelConfigError("Forcing must be of type Temperature or Precipitation");
     }
 }
 

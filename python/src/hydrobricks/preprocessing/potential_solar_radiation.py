@@ -106,6 +106,10 @@ class PotentialSolarRadiation:
         n_rows = slope.shape[0]
         n_cols = slope.shape[1]
 
+        # Pre-compute index grids once to avoid repeated allocation and fragmentation
+        dem_data_shape = dem.read(1).shape
+        xv, yv = np.indices(dem_data_shape, dtype=np.int32)
+
         # Create an array with the day of the year (Julian Day)
         day_of_year = np.arange(1, 367)
 
@@ -163,11 +167,14 @@ class PotentialSolarRadiation:
                 # Account for cast shadows
                 if with_cast_shadows:
                     cast_shadows = self.calculate_cast_shadows(
-                        dem, masked_dem_data, zenith[j], azimuth[j]
+                        dem, masked_dem_data, zenith[j], azimuth[j], xv, yv
                     )
                     potential_radiation = potential_radiation * (1 - cast_shadows)
 
                 inter_pot_radiation[j, :, :] = potential_radiation.copy()
+                del potential_radiation
+                if with_cast_shadows:
+                    del cast_shadows
 
             with warnings.catch_warnings():
                 # This function throws a warning for the first slides of nanmean,
@@ -217,9 +224,8 @@ class PotentialSolarRadiation:
         filename
             Name of the input file. Default is 'annual_potential_radiation.tif'.
         """
-        self.mean_annual_radiation = rxr.open_rasterio(
-            Path(dir_path) / filename
-        ).drop_vars("band")[0]
+        with rxr.open_rasterio(Path(dir_path) / filename) as _raw:
+            self.mean_annual_radiation = _raw.drop_vars("band")[0].load()
 
     def upscale_and_save_mean_annual_radiation_rasters(
         self,
@@ -285,6 +291,8 @@ class PotentialSolarRadiation:
         masked_dem: np.ndarray,
         zenith: float,
         azimuth: float,
+        xv: np.ndarray = None,
+        yv: np.ndarray = None,
     ) -> np.ndarray:
         """
         Calculate the cast shadows on terrain from a given sun position.
@@ -303,6 +311,12 @@ class PotentialSolarRadiation:
             Solar zenith angle in degrees.
         azimuth
             Solar azimuth angle in degrees from north.
+        xv
+            Pre-computed x grid for the DEM, to avoid repeated allocation.
+            If None, it will be computed inside the function. Default is None.
+        yv
+            Pre-computed y grid for the DEM, to avoid repeated allocation.
+            If None, it will be computed inside the function. Default is None.
 
         Returns
         -------
@@ -335,7 +349,8 @@ class PotentialSolarRadiation:
         pixel_size = (x_size + y_size) / 2
 
         # Get the x and y grids for the DEM
-        xv, yv = np.indices(dem.shape)
+        if xv is None or yv is None:
+            xv, yv = np.indices(dem.shape, dtype=np.int32)
 
         # Get the base arrays for the solar ray IDs and the offset distances
         if azimuth < -135:  # NNE

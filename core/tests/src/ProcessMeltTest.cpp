@@ -47,14 +47,16 @@ class SnowpackModel : public ::testing::Test {
 
         _model.AddLoggingToItem("outlet");
 
-        auto precip = std::make_unique<TimeSeriesDataRegular>(GetMJD(2020, 1, 1), GetMJD(2020, 1, 10), 1, Day);
+        auto precip = std::make_unique<TimeSeriesDataRegular>(GetMJD(2020, 1, 1), GetMJD(2020, 1, 10), 1,
+                                                              TimeUnit::Day);
         precip->SetValues({0.0, 10.0, 10.0, 10.0, 10.0, 10.0, 10.0, 10.0, 10.0, 0.0});
-        _tsPrecip = std::make_unique<TimeSeriesUniform>(Precipitation);
+        _tsPrecip = std::make_unique<TimeSeriesUniform>(VariableType::Precipitation);
         _tsPrecip->SetData(std::move(precip));
 
-        auto temperature = std::make_unique<TimeSeriesDataRegular>(GetMJD(2020, 1, 1), GetMJD(2020, 1, 10), 1, Day);
+        auto temperature = std::make_unique<TimeSeriesDataRegular>(GetMJD(2020, 1, 1), GetMJD(2020, 1, 10), 1,
+                                                                   TimeUnit::Day);
         temperature->SetValues({-2.0, -1.0, -1.0, 1.0, 2.0, 3.0, 4.0, 5.0, 8.0, 9.0});
-        _tsTemp = std::make_unique<TimeSeriesUniform>(Temperature);
+        _tsTemp = std::make_unique<TimeSeriesUniform>(VariableType::Temperature);
         _tsTemp->SetData(std::move(temperature));
     }
     void TearDown() override {
@@ -103,8 +105,6 @@ TEST_F(SnowpackModel, DegreeDay) {
 }
 
 TEST_F(SnowpackModel, ModelClosesBalance) {
-    wxLogNull logNo;
-
     SettingsBasin basinProp;
     basinProp.AddHydroUnit(1, 1000);
 
@@ -175,14 +175,16 @@ class SnowpackModelWithAspect : public ::testing::Test {
 
         _model.AddLoggingToItem("outlet");
 
-        auto precip = std::make_unique<TimeSeriesDataRegular>(GetMJD(2020, 1, 1), GetMJD(2020, 1, 10), 1, Day);
+        auto precip = std::make_unique<TimeSeriesDataRegular>(GetMJD(2020, 1, 1), GetMJD(2020, 1, 10), 1,
+                                                              TimeUnit::Day);
         precip->SetValues({0.0, 10.0, 10.0, 10.0, 10.0, 10.0, 10.0, 10.0, 10.0, 0.0});
-        _tsPrecip = std::make_unique<TimeSeriesUniform>(Precipitation);
+        _tsPrecip = std::make_unique<TimeSeriesUniform>(VariableType::Precipitation);
         _tsPrecip->SetData(std::move(precip));
 
-        auto temperature = std::make_unique<TimeSeriesDataRegular>(GetMJD(2020, 1, 1), GetMJD(2020, 1, 10), 1, Day);
+        auto temperature = std::make_unique<TimeSeriesDataRegular>(GetMJD(2020, 1, 1), GetMJD(2020, 1, 10), 1,
+                                                                   TimeUnit::Day);
         temperature->SetValues({-2.0, -1.0, -1.0, 1.0, 2.0, 3.0, 4.0, 5.0, 8.0, 9.0});
-        _tsTemp = std::make_unique<TimeSeriesUniform>(Temperature);
+        _tsTemp = std::make_unique<TimeSeriesUniform>(VariableType::Temperature);
         _tsTemp->SetData(std::move(temperature));
     }
     void TearDown() override {
@@ -252,9 +254,10 @@ class GlacierModel : public ::testing::Test {
 
         _model.AddLoggingToItem("outlet");
 
-        auto temperature = std::make_unique<TimeSeriesDataRegular>(GetMJD(2020, 1, 1), GetMJD(2020, 1, 10), 1, Day);
+        auto temperature = std::make_unique<TimeSeriesDataRegular>(GetMJD(2020, 1, 1), GetMJD(2020, 1, 10), 1,
+                                                                   TimeUnit::Day);
         temperature->SetValues({-2.0, -1.0, -1.0, 1.0, 2.0, 3.0, 4.0, 5.0, 8.0, 9.0});
-        _tsTemp = std::make_unique<TimeSeriesUniform>(Temperature);
+        _tsTemp = std::make_unique<TimeSeriesUniform>(VariableType::Temperature);
         _tsTemp->SetData(std::move(temperature));
     }
     void TearDown() override {
@@ -263,8 +266,6 @@ class GlacierModel : public ::testing::Test {
 };
 
 TEST_F(GlacierModel, UnlimitedSupply) {
-    wxLogNull logNo;
-
     SettingsBasin basinSettings;
     basinSettings.AddHydroUnit(1, 100);
     basinSettings.AddLandCover("glacier", "glacier", 1);
@@ -338,14 +339,15 @@ class GlacierModelWithSnowpack : public ::testing::Test {
 
         _model.AddLoggingToItem("outlet");
 
-        auto precip = std::make_unique<TimeSeriesDataRegular>(GetMJD(2020, 1, 1), GetMJD(2020, 1, 8), 1, Day);
+        auto precip = std::make_unique<TimeSeriesDataRegular>(GetMJD(2020, 1, 1), GetMJD(2020, 1, 8), 1, TimeUnit::Day);
         precip->SetValues({8.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0});
-        _tsPrecip = std::make_unique<TimeSeriesUniform>(Precipitation);
+        _tsPrecip = std::make_unique<TimeSeriesUniform>(VariableType::Precipitation);
         _tsPrecip->SetData(std::move(precip));
 
-        auto temperature = std::make_unique<TimeSeriesDataRegular>(GetMJD(2020, 1, 1), GetMJD(2020, 1, 8), 1, Day);
+        auto temperature = std::make_unique<TimeSeriesDataRegular>(GetMJD(2020, 1, 1), GetMJD(2020, 1, 8), 1,
+                                                                   TimeUnit::Day);
         temperature->SetValues({-2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0});
-        _tsTemp = std::make_unique<TimeSeriesUniform>(Temperature);
+        _tsTemp = std::make_unique<TimeSeriesUniform>(VariableType::Temperature);
         _tsTemp->SetData(std::move(temperature));
     }
     void TearDown() override {
@@ -354,8 +356,6 @@ class GlacierModelWithSnowpack : public ::testing::Test {
 };
 
 TEST_F(GlacierModelWithSnowpack, NoIceMeltIfSnowCover) {
-    wxLogNull logNo;
-
     SettingsBasin basinProp;
     basinProp.AddHydroUnit(1, 1000);
     basinProp.AddLandCover("glacier", "glacier", 1);
@@ -398,8 +398,6 @@ TEST_F(GlacierModelWithSnowpack, NoIceMeltIfSnowCover) {
 }
 
 TEST_F(GlacierModelWithSnowpack, ModelClosesBalance) {
-    wxLogNull logNo;
-
     SettingsBasin basinProp;
     basinProp.AddHydroUnit(1, 1000);
     basinProp.AddLandCover("glacier", "glacier", 1);
@@ -483,19 +481,21 @@ class MultiGlaciersModelWithTemperatureIndex : public ::testing::Test {
         EXPECT_TRUE(_model.SetParameterValue("type:snowpack", "radiation_coefficient", 0.0006f));
         EXPECT_TRUE(_model.SetParameterValue("type:glacier", "radiation_coefficient", 0.001f));
 
-        auto precip = std::make_unique<TimeSeriesDataRegular>(GetMJD(2020, 1, 1), GetMJD(2020, 1, 8), 1, Day);
+        auto precip = std::make_unique<TimeSeriesDataRegular>(GetMJD(2020, 1, 1), GetMJD(2020, 1, 8), 1, TimeUnit::Day);
         precip->SetValues({8.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0});
-        _tsPrecip = std::make_unique<TimeSeriesUniform>(Precipitation);
+        _tsPrecip = std::make_unique<TimeSeriesUniform>(VariableType::Precipitation);
         _tsPrecip->SetData(std::move(precip));
 
-        auto temperature = std::make_unique<TimeSeriesDataRegular>(GetMJD(2020, 1, 1), GetMJD(2020, 1, 8), 1, Day);
+        auto temperature = std::make_unique<TimeSeriesDataRegular>(GetMJD(2020, 1, 1), GetMJD(2020, 1, 8), 1,
+                                                                   TimeUnit::Day);
         temperature->SetValues({-2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0});
-        _tsTemp = std::make_unique<TimeSeriesUniform>(Temperature);
+        _tsTemp = std::make_unique<TimeSeriesUniform>(VariableType::Temperature);
         _tsTemp->SetData(std::move(temperature));
 
-        auto radiation = std::make_unique<TimeSeriesDataRegular>(GetMJD(2020, 1, 1), GetMJD(2020, 1, 8), 1, Day);
+        auto radiation = std::make_unique<TimeSeriesDataRegular>(GetMJD(2020, 1, 1), GetMJD(2020, 1, 8), 1,
+                                                                 TimeUnit::Day);
         radiation->SetValues({100, 110, 120, 130, 140, 150, 160, 170});
-        _tsRad = std::make_unique<TimeSeriesUniform>(Radiation);
+        _tsRad = std::make_unique<TimeSeriesUniform>(VariableType::Radiation);
         _tsRad->SetData(std::move(radiation));
     }
     void TearDown() override {
@@ -504,8 +504,6 @@ class MultiGlaciersModelWithTemperatureIndex : public ::testing::Test {
 };
 
 TEST_F(MultiGlaciersModelWithTemperatureIndex, TemperatureIndexMelt) {
-    wxLogNull logNo;
-
     SettingsBasin basinProp;
     basinProp.AddHydroUnit(1, 1000);
     basinProp.AddLandCover("ground", "ground", 0.2);

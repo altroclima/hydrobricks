@@ -12,7 +12,7 @@ void ProcessTransform::RegisterProcessParametersAndForcing(SettingsModel*) {
 
 bool ProcessTransform::IsValid() const {
     if (_outputs.size() != 1) {
-        wxLogError(_("A transform process should have a single output."));
+        LogError("A transform process should have a single output.");
         return false;
     }
 
@@ -23,7 +23,7 @@ int ProcessTransform::GetConnectionCount() const {
     return 1;
 }
 
-double* ProcessTransform::GetValuePointer(const string& name) {
+double* ProcessTransform::GetValuePointer(std::string_view name) {
     if (name == "output") {
         return _outputs[0]->GetAmountPointer();
     }

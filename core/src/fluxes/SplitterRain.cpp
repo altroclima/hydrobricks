@@ -6,7 +6,7 @@ SplitterRain::SplitterRain()
 
 bool SplitterRain::IsValid() const {
     if (_outputs.size() != 1) {
-        wxLogError(_("SplitterRain should have 1 output."));
+        LogError("SplitterRain should have 1 output.");
         return false;
     }
 
@@ -18,10 +18,10 @@ void SplitterRain::SetParameters(const SplitterSettings&) {
 }
 
 void SplitterRain::AttachForcing(Forcing* forcing) {
-    if (forcing->GetType() == Precipitation) {
+    if (forcing->GetType() == VariableType::Precipitation) {
         _precipitation = forcing;
     } else {
-        throw ModelConfigError(_("Forcing must be of type Precipitation"));
+        throw ModelConfigError("Forcing must be of type Precipitation");
     }
 }
 

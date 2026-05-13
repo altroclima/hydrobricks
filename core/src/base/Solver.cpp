@@ -27,42 +27,39 @@ static string GetValidSolverNames() {
     return suggestions;
 }
 
-Solver* Solver::Factory(const SolverSettings& solverSettings) {
-    using FactoryFunc = std::function<Solver*()>;
+std::unique_ptr<Solver> Solver::Factory(const SolverSettings& solverSettings) {
+    using FactoryFunc = std::function<std::unique_ptr<Solver>()>;
 
     static const std::unordered_map<string, FactoryFunc> factoryMap = {
-        {"rk4", []() { return new SolverRK4(); }},
-        {"runge_kutta", []() { return new SolverRK4(); }},
-        {"euler_explicit", []() { return new SolverEulerExplicit(); }},
-        {"heun_explicit", []() { return new SolverHeunExplicit(); }}};
+        {"rk4", []() { return std::make_unique<SolverRK4>(); }},
+        {"runge_kutta", []() { return std::make_unique<SolverRK4>(); }},
+        {"euler_explicit", []() { return std::make_unique<SolverEulerExplicit>(); }},
+        {"heun_explicit", []() { return std::make_unique<SolverHeunExplicit>(); }}};
 
     auto it = factoryMap.find(solverSettings.name);
     if (it != factoryMap.end()) {
         return it->second();
     }
 
-    throw ModelConfigError(
-        wxString::Format(_("Incorrect solver name: %s. %s"), solverSettings.name, GetValidSolverNames()));
+    throw ModelConfigError(std::format("Incorrect solver name: {}. {}", solverSettings.name, GetValidSolverNames()));
 }
 
 void Solver::InitializeContainers() {
-    wxASSERT(_processor);
-    wxASSERT(_nIterations > 0);
+    assert(_processor);
+    assert(_nIterations > 0);
     _stateVariableChanges = axxd::Zero(_processor->GetStateVariableCount(), _nIterations);
     _changeRates = axxd::Zero(_processor->GetSolvableConnectionCount(), _nIterations);
 }
 
 void Solver::SaveStateVariables(int col) {
-    wxASSERT(_processor);
-    int counter = 0;
-    for (auto value : *(_processor->GetStateVariablesVectorPt())) {
-        _stateVariableChanges(counter, col) = *value;
-        counter++;
+    assert(_processor);
+    for (auto [i, value] : std::views::enumerate(_processor->GetStateVariables())) {
+        _stateVariableChanges(i, col) = *value;
     }
 }
 
 void Solver::ComputeChangeRates(int col, bool applyConstraints) {
-    wxASSERT(_processor);
+    assert(_processor);
     int iRate = 0;
     for (auto brick : *(_processor->GetIterableBricksVectorPt())) {
         double sumRates = 0.0;
@@ -73,7 +70,7 @@ void Solver::ComputeChangeRates(int col, bool applyConstraints) {
             vecDouble rates = process->GetChangeRates();
 
             for (int j = 0; j < rates.size(); ++j) {
-                wxASSERT(_changeRates.rows() > iRate);
+                assert(_changeRates.rows() > iRate);
                 _changeRates(iRate, col) = rates[j];
                 sumRates += rates[j];
 
@@ -93,13 +90,13 @@ void Solver::ComputeChangeRates(int col, bool applyConstraints) {
 }
 
 void Solver::ApplyConstraintsFor(int col) {
-    wxASSERT(_processor);
+    assert(_processor);
     int iRate = 0;
     for (auto brick : *(_processor->GetIterableBricksVectorPt())) {
         for (int i = 0; i < brick->GetProcessCount(); ++i) {
             auto process = brick->GetProcess(i);
             for (int j = 0; j < process->GetConnectionCount(); ++j) {
-                wxASSERT(_changeRates.rows() > iRate);
+                assert(_changeRates.rows() > iRate);
                 // Link to fluxes to enforce subsequent constraints
                 process->StoreInOutgoingFlux(&_changeRates(iRate, col), j);
                 iRate++;
@@ -111,32 +108,28 @@ void Solver::ApplyConstraintsFor(int col) {
 }
 
 void Solver::ResetStateVariableChanges() {
-    wxASSERT(_processor);
-    for (auto value : *(_processor->GetStateVariablesVectorPt())) {
+    assert(_processor);
+    for (auto value : _processor->GetStateVariables()) {
         *value = 0;
     }
 }
 
 void Solver::SetStateVariablesToIteration(int col) {
-    wxASSERT(_processor);
-    int counter = 0;
-    for (auto value : *(_processor->GetStateVariablesVectorPt())) {
-        *value = _stateVariableChanges(counter, col);
-        counter++;
+    assert(_processor);
+    for (auto [i, value] : std::views::enumerate(_processor->GetStateVariables())) {
+        *value = _stateVariableChanges(i, col);
     }
 }
 
 void Solver::SetStateVariablesToAvgOf(int col1, int col2) {
-    wxASSERT(_processor);
-    int counter = 0;
-    for (auto value : *(_processor->GetStateVariablesVectorPt())) {
-        *value = (_stateVariableChanges(counter, col1) + _stateVariableChanges(counter, col2)) / 2.0;
-        counter++;
+    assert(_processor);
+    for (auto [i, value] : std::views::enumerate(_processor->GetStateVariables())) {
+        *value = (_stateVariableChanges(i, col1) + _stateVariableChanges(i, col2)) / 2.0;
     }
 }
 
 void Solver::ApplyProcesses(int col) const {
-    wxASSERT(_processor);
+    assert(_processor);
     int iRate = 0;
     for (auto brick : *(_processor->GetIterableBricksVectorPt())) {
         if (brick->IsNull()) {
@@ -154,7 +147,7 @@ void Solver::ApplyProcesses(int col) const {
 }
 
 void Solver::ApplyProcesses(const axd& changeRates) const {
-    wxASSERT(_processor);
+    assert(_processor);
     int iRate = 0;
     for (auto brick : *(_processor->GetIterableBricksVectorPt())) {
         if (brick->IsNull()) {
@@ -172,7 +165,7 @@ void Solver::ApplyProcesses(const axd& changeRates) const {
 }
 
 void Solver::Finalize() const {
-    wxASSERT(_processor);
+    assert(_processor);
     for (auto brick : *(_processor->GetIterableBricksVectorPt())) {
         if (brick->IsNull()) {
             continue;

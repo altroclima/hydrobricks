@@ -4,11 +4,11 @@
 #include "Includes.h"
 #include "TimeSeriesData.h"
 
-class Forcing : public wxObject {
+class Forcing {
   public:
     explicit Forcing(VariableType type);
 
-    ~Forcing() override = default;
+    virtual ~Forcing() = default;
 
     /**
      * Attach time series data to the forcing.
@@ -31,7 +31,7 @@ class Forcing : public wxObject {
      *
      * @return the value of the forcing.
      */
-    double GetValue();
+    double GetValue() const;
 
     /**
      * Check if the forcing is valid.

@@ -50,12 +50,12 @@ void ProcessMeltTemperatureIndex::SetParameters(const ProcessSettings& processSe
 }
 
 void ProcessMeltTemperatureIndex::AttachForcing(Forcing* forcing) {
-    if (forcing->GetType() == Temperature) {
+    if (forcing->GetType() == VariableType::Temperature) {
         _temperature = forcing;
-    } else if (forcing->GetType() == Radiation) {
+    } else if (forcing->GetType() == VariableType::Radiation) {
         _solarRadiation = forcing;
     } else {
-        throw ModelConfigError(_("Forcing must be of type Temperature or Radiation"));
+        throw ModelConfigError("Forcing must be of type Temperature or Radiation");
     }
 }
 

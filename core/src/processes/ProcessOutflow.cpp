@@ -12,7 +12,7 @@ void ProcessOutflow::RegisterProcessParametersAndForcing(SettingsModel*) {
 
 bool ProcessOutflow::IsValid() const {
     if (_outputs.size() != 1) {
-        wxLogError(_("An outflow should have a single output."));
+        LogError("An outflow should have a single output.");
         return false;
     }
 
@@ -23,7 +23,7 @@ int ProcessOutflow::GetConnectionCount() const {
     return static_cast<int>(_outputs.size());
 }
 
-double* ProcessOutflow::GetValuePointer(const string& name) {
+double* ProcessOutflow::GetValuePointer(std::string_view name) {
     if (name == "output") {
         return _outputs[0]->GetAmountPointer();
     }
